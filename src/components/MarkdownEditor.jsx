@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
 import { useStore } from '../store/useStore'
 
 /**
@@ -57,7 +59,7 @@ export default function MarkdownEditor({ conceptId, field, content = '', placeho
         </div>
         <div className="p-4 prose prose-sm prose-neutral max-w-none min-h-[64px]">
           {content ? (
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{content}</ReactMarkdown>
           ) : (
             <p className="text-gray-400 italic text-sm m-0">{placeholder || 'No content yet. Click Edit to add.'}</p>
           )}
@@ -113,7 +115,7 @@ export default function MarkdownEditor({ conceptId, field, content = '', placeho
       ) : (
         <div className="p-4 prose prose-sm prose-neutral max-w-none min-h-[80px]">
           {draft ? (
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{draft}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{draft}</ReactMarkdown>
           ) : (
             <p className="text-gray-400 italic text-sm m-0">Nothing to preview.</p>
           )}
@@ -158,7 +160,7 @@ export function InlineEditor({ conceptId, field, content = '', placeholder = '' 
     return (
       <div>
         <div className="prose prose-xs prose-neutral max-w-none text-sm">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{content}</ReactMarkdown>
         </div>
         <button
           onClick={() => { setDraft(content); setIsEditing(true) }}
