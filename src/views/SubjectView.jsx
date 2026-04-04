@@ -1,62 +1,102 @@
-import { useState, useMemo, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useState, useMemo, useEffect, useRef } from 'react'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import FilterSortBar from '../components/FilterSortBar'
 import { StateSelector, PriorityBadge, ReviewCounter, PinButton } from '../components/StatusBadge'
 import { InlineEditor } from '../components/MarkdownEditor'
 
 const SUBJECT_SORT_LABELS = { alpha: 'A → Z', date: 'Date added', custom: 'Custom' }
-const SCROLL_KEY = sid => `scroll-subject-${sid}`
+const SCROLL_KEY  = sid => `scroll-subject-${sid}`
+const LAST_ID_KEY = sid => `subject-last-id-${sid}`
+const STATE_KEY   = sid => `subject-state-${sid}`
 const getMain = () => document.getElementById('main-content')
+
+const EMPTY_FILTERS = { topics: [], tags: [], states: [], priorities: [], pinned: false }
+
+function isEditableTarget(e) {
+  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) ||
+    e.target.contentEditable === 'true'
+}
 
 export default function SubjectView() {
   const { subjectId } = useParams()
+  const navigate = useNavigate()
 
-  const subject          = useStore(s => s.subjects.find(x => x.id === subjectId))
-  const allConcepts      = useStore(s => s.concepts)
-  const topics           = useStore(s => s.topics)
-  const tags             = useStore(s => s.tags)
-  const subjectOrders    = useStore(s => s.subjectOrders)
-  const sortMode         = useStore(s => s.subjectSortModes[subjectId] ?? 'alpha')
-  const setSubjectSortMode    = useStore(s => s.setSubjectSortMode)
-  const moveConceptInSubject  = useStore(s => s.moveConceptInSubject)
-  const deleteConcept         = useStore(s => s.deleteConcept)
-  const updateConceptField    = useStore(s => s.updateConceptField)
-  const incrementReview       = useStore(s => s.incrementReview)
+  const subject              = useStore(s => s.subjects.find(x => x.id === subjectId))
+  const allConcepts          = useStore(s => s.concepts)
+  const topics               = useStore(s => s.topics)
+  const tags                 = useStore(s => s.tags)
+  const subjectOrders        = useStore(s => s.subjectOrders)
+  const sortMode             = useStore(s => s.subjectSortModes[subjectId] ?? 'alpha')
+  const setSubjectSortMode   = useStore(s => s.setSubjectSortMode)
+  const moveConceptInSubject = useStore(s => s.moveConceptInSubject)
+  const deleteConcept        = useStore(s => s.deleteConcept)
+  const updateConceptField   = useStore(s => s.updateConceptField)
+  const incrementReview      = useStore(s => s.incrementReview)
+  const decrementReview      = useStore(s => s.decrementReview)
 
-  const [filters, setFiltersState] = useState({
-    topic: '', tag: '', state: '', priority: '', pinned: false,
+  // Restore filter state if returning from ConceptView (read before first render)
+  const [savedState] = useState(() => {
+    if (!sessionStorage.getItem('cv-back')) return null
+    try { return JSON.parse(sessionStorage.getItem(STATE_KEY(subjectId)) || 'null') } catch { return null }
   })
 
-  function setFilter(key, value) { setFiltersState(f => ({ ...f, [key]: value })) }
-  function clearFilters() { setFiltersState({ topic: '', tag: '', state: '', priority: '', pinned: false }) }
-  const hasActiveFilters = Boolean(filters.topic || filters.tag || filters.state || filters.priority || filters.pinned)
+  const [filters, setFiltersState] = useState(() => savedState?.filters ?? EMPTY_FILTERS)
+  const [focusedIdx, setFocusedIdx]   = useState(0)
+  const [expandedIds, setExpandedIds] = useState(new Set())
 
-  // Restore scroll only when navigating back from ConceptView
+  function setFilter(key, value) { setFiltersState(f => ({ ...f, [key]: value })) }
+  function clearFilters() { setFiltersState(EMPTY_FILTERS) }
+  const hasActiveFilters = Boolean(
+    filters.topics?.length || filters.tags?.length || filters.states?.length ||
+    filters.priorities?.length || filters.pinned
+  )
+
+  // suppressScroll: true while we're restoring scroll from a back-navigation
+  const suppressScroll = useRef(false)
+
+  // Scroll to top on mount; restore scroll/focus if returning from ConceptView
   useEffect(() => {
-    if (!sessionStorage.getItem('cv-back')) return
-    sessionStorage.removeItem('cv-back')
-    const saved = sessionStorage.getItem(SCROLL_KEY(subjectId))
-    if (!saved) return
     const el = getMain()
-    if (el) {
-      el.scrollTop = parseInt(saved, 10)
+    if (el) el.scrollTop = 0
+
+    if (sessionStorage.getItem('cv-back')) {
+      sessionStorage.removeItem('cv-back')
+      sessionStorage.removeItem(STATE_KEY(subjectId))
+      const saved = sessionStorage.getItem(SCROLL_KEY(subjectId))
       sessionStorage.removeItem(SCROLL_KEY(subjectId))
+      const lastId = sessionStorage.getItem(LAST_ID_KEY(subjectId))
+      sessionStorage.removeItem(LAST_ID_KEY(subjectId))
+
+      const idx = lastId ? displayed.findIndex(c => c.id === lastId) : -1
+      if (idx >= 0) setFocusedIdx(idx)
+
+      if (saved) {
+        suppressScroll.current = true
+        const pos = parseInt(saved, 10)
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            const el2 = getMain()
+            if (el2) el2.scrollTop = pos
+            suppressScroll.current = false
+          })
+        })
+      }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subjectId])
 
   const subjectConcepts = allConcepts.filter(c => c.subjectIds.includes(subjectId))
 
   const displayed = useMemo(() => {
     const filtered = subjectConcepts.filter(c => {
-      if (filters.topic    && !c.topicIds.includes(filters.topic))        return false
-      if (filters.tag      && !c.tagIds.includes(filters.tag))            return false
-      if (filters.state    && (c.state ?? 'NEW') !== filters.state)       return false
-      if (filters.priority && (c.priority ?? 'MEDIUM') !== filters.priority) return false
-      if (filters.pinned   && !c.pinned)                                  return false
+      if (filters.topics?.length     && !filters.topics.some(id => c.topicIds.includes(id)))           return false
+      if (filters.tags?.length       && !filters.tags.some(id => c.tagIds.includes(id)))               return false
+      if (filters.states?.length     && !filters.states.includes(c.state ?? 'NEW'))                    return false
+      if (filters.priorities?.length && !filters.priorities.includes(c.priority ?? 'MEDIUM'))          return false
+      if (filters.pinned             && !c.pinned)                                                      return false
       return true
     })
-
     if (sortMode === 'alpha') return [...filtered].sort((a, b) => a.name.localeCompare(b.name))
     if (sortMode === 'date')  return [...filtered].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
     if (sortMode === 'custom') {
@@ -64,13 +104,77 @@ export default function SubjectView() {
       return [...filtered].sort((a, b) => {
         const ia = order.indexOf(a.id), ib = order.indexOf(b.id)
         if (ia === -1 && ib === -1) return new Date(a.createdAt) - new Date(b.createdAt)
-        if (ia === -1) return 1
-        if (ib === -1) return -1
+        if (ia === -1) return 1; if (ib === -1) return -1
         return ia - ib
       })
     }
     return filtered
   }, [subjectConcepts, filters, sortMode, subjectOrders, subjectId])
+
+  // Reset focus to first item when sort changes (skip on first render)
+  const isFirstRender = useRef(true)
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return }
+    setFocusedIdx(0)
+  }, [sortMode])
+
+  // Scroll focused row into view (suppressed during back-navigation restoration)
+  useEffect(() => {
+    if (suppressScroll.current) return
+    const concept = displayed[focusedIdx]
+    if (!concept) return
+    const el = document.getElementById(`sub-${concept.id}`)
+    if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [focusedIdx, displayed])
+
+  // Keyboard navigation
+  const stateRef = useRef({})
+  stateRef.current = { displayed, focusedIdx, expandedIds, filters }
+
+  useEffect(() => {
+    function onKey(e) {
+      if (isEditableTarget(e)) return
+      const { displayed, focusedIdx, expandedIds, filters } = stateRef.current
+      if (!displayed.length) return
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setFocusedIdx(i => Math.min(i + 1, displayed.length - 1))
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setFocusedIdx(i => Math.max(i - 1, 0))
+      } else if (e.key === 'Enter') {
+        e.preventDefault()
+        const concept = displayed[focusedIdx]
+        if (concept) {
+          sessionStorage.setItem(STATE_KEY(subjectId), JSON.stringify({ filters }))
+          const el = getMain()
+          if (el) sessionStorage.setItem(SCROLL_KEY(subjectId), String(el.scrollTop))
+          sessionStorage.setItem(LAST_ID_KEY(subjectId), concept.id)
+          navigate(`/app/concepts/${concept.id}`)
+        }
+      } else if (e.key === ' ') {
+        e.preventDefault()
+        const concept = displayed[focusedIdx]
+        if (concept) {
+          setExpandedIds(prev => {
+            const next = new Set(prev)
+            if (next.has(concept.id)) next.delete(concept.id)
+            else next.add(concept.id)
+            return next
+          })
+        }
+      } else if (e.key === '+' || e.key === '=') {
+        const concept = displayed[focusedIdx]
+        if (concept) useStore.getState().incrementReview(concept.id)
+      } else if (e.key === '-') {
+        const concept = displayed[focusedIdx]
+        if (concept) useStore.getState().decrementReview(concept.id)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [navigate, subjectId])
 
   if (!subject) {
     return <div className="flex items-center justify-center h-full"><p className="text-gray-400">Subject not found.</p></div>
@@ -81,17 +185,17 @@ export default function SubjectView() {
     if (window.confirm(`Delete "${concept.name}"?`)) deleteConcept(concept.id)
   }
 
-  function saveScroll() {
+  function saveState(conceptId) {
+    sessionStorage.setItem(STATE_KEY(subjectId), JSON.stringify({ filters }))
     const el = getMain()
     if (el) sessionStorage.setItem(SCROLL_KEY(subjectId), String(el.scrollTop))
+    sessionStorage.setItem(LAST_ID_KEY(subjectId), conceptId)
   }
 
-  // Only show up/down arrows for concepts that appear in the filtered list
   function canMoveUp(conceptId) {
     if (sortMode !== 'custom' || hasActiveFilters) return false
     const order = subjectOrders[subjectId] || []
-    const idx = order.indexOf(conceptId)
-    return idx > 0
+    return order.indexOf(conceptId) > 0
   }
   function canMoveDown(conceptId) {
     if (sortMode !== 'custom' || hasActiveFilters) return false
@@ -102,10 +206,10 @@ export default function SubjectView() {
 
   return (
     <div className="max-w-3xl mx-auto px-8 py-10">
-      <h1 className="text-3xl font-bold text-gray-900 mb-1">{subject.name}</h1>
-      <p className="text-sm text-gray-400 mb-6">
-        {subjectConcepts.length} concept{subjectConcepts.length !== 1 ? 's' : ''}
-      </p>
+      <div className="flex items-baseline justify-between mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">{subject.name}</h1>
+        <span className="text-sm text-gray-400">{subjectConcepts.length} total</span>
+      </div>
 
       <FilterSortBar
         filters={filters} sort={sortMode}
@@ -131,19 +235,31 @@ export default function SubjectView() {
         </div>
       ) : (
         <div className="space-y-2">
-          {displayed.map(concept => (
+          {displayed.map((concept, idx) => (
             <ConceptRow
               key={concept.id}
               concept={concept}
+              focused={idx === focusedIdx}
+              expanded={expandedIds.has(concept.id)}
+              onToggleExpand={() => {
+                setExpandedIds(prev => {
+                  const next = new Set(prev)
+                  if (next.has(concept.id)) next.delete(concept.id)
+                  else next.add(concept.id)
+                  return next
+                })
+              }}
+              onFocus={() => setFocusedIdx(idx)}
               isCustom={sortMode === 'custom' && !hasActiveFilters}
               canUp={canMoveUp(concept.id)}
               canDown={canMoveDown(concept.id)}
               onMoveUp={e => { e.preventDefault(); moveConceptInSubject(subjectId, concept.id, 'up') }}
               onMoveDown={e => { e.preventDefault(); moveConceptInSubject(subjectId, concept.id, 'down') }}
               onDelete={e => handleDelete(e, concept)}
-              onSaveScroll={saveScroll}
+              onSaveState={() => saveState(concept.id)}
               onUpdateField={(f, v) => updateConceptField(concept.id, f, v)}
               onIncrementReview={() => incrementReview(concept.id)}
+              onDecrementReview={() => decrementReview(concept.id)}
             />
           ))}
         </div>
@@ -152,58 +268,73 @@ export default function SubjectView() {
   )
 }
 
-function ConceptRow({ concept, isCustom, canUp, canDown, onMoveUp, onMoveDown, onDelete, onSaveScroll, onUpdateField, onIncrementReview }) {
-  const [expanded, setExpanded] = useState(false)
-
+function ConceptRow({ concept, focused, expanded, onToggleExpand, onFocus, isCustom, canUp, canDown, onMoveUp, onMoveDown, onDelete, onSaveState, onUpdateField, onIncrementReview, onDecrementReview }) {
   return (
-    <div className="bg-white border border-gray-100 rounded-xl shadow-sm">
+    <div
+      id={`sub-${concept.id}`}
+      className={`bg-white border rounded-xl shadow-sm transition-all ${
+        focused ? 'border-indigo-300 ring-2 ring-indigo-200 ring-inset' : 'border-gray-100'
+      }`}
+      onClick={onFocus}
+    >
       <div className="flex items-center gap-2 px-4 py-3">
-        {/* Custom sort arrows */}
-        {isCustom && (
-          <div className="flex flex-col gap-0 flex-shrink-0">
-            <button
-              onClick={onMoveUp}
-              disabled={!canUp}
-              className="text-gray-300 hover:text-gray-600 disabled:opacity-20 leading-tight text-xs px-0.5"
-              title="Move up"
-            >↑</button>
-            <button
-              onClick={onMoveDown}
-              disabled={!canDown}
-              className="text-gray-300 hover:text-gray-600 disabled:opacity-20 leading-tight text-xs px-0.5"
-              title="Move down"
-            >↓</button>
-          </div>
-        )}
-
         {/* Concept name */}
-        <Link
-          to={`/concepts/${concept.id}`}
-          onClick={onSaveScroll}
-          className="flex-1 font-medium text-gray-900 hover:text-indigo-700 transition-colors truncate min-w-0"
-        >
-          {concept.pinned && <span className="text-amber-400 mr-1.5 text-xs">★</span>}
-          {concept.name}
-        </Link>
+        <div className="flex-1 min-w-0">
+          <Link
+            to={`/app/concepts/${concept.id}`}
+            onClick={onSaveState}
+            className="font-medium text-gray-900 hover:text-indigo-700 transition-colors"
+          >
+            {concept.pinned && <span className="text-amber-400 mr-1.5 text-xs">★</span>}
+            {concept.name}
+          </Link>
+        </div>
 
         {/* Controls */}
         <div className="flex items-center gap-2 flex-shrink-0">
           <StateSelector value={concept.state} onChange={v => onUpdateField('state', v)} />
           <PriorityBadge value={concept.priority} onChange={v => onUpdateField('priority', v)} />
-          <ReviewCounter count={concept.reviewCount} onIncrement={onIncrementReview} />
+          <ReviewCounter count={concept.reviewCount} onIncrement={onIncrementReview} onDecrement={onDecrementReview} />
           <PinButton pinned={concept.pinned} onToggle={() => onUpdateField('pinned', !concept.pinned)} />
           <button
-            onClick={e => { e.preventDefault(); setExpanded(x => !x) }}
-            className="text-gray-400 hover:text-gray-700 text-xs w-5 text-center transition-colors"
-            title={expanded ? 'Collapse' : 'Expand MVK'}
+            onClick={e => { e.preventDefault(); onToggleExpand() }}
+            className="text-gray-400 hover:text-gray-700 text-xs w-5 text-center transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-400 rounded"
+            aria-expanded={expanded}
+            aria-label={expanded ? `Collapse notes for ${concept.name}` : `Expand notes for ${concept.name}`}
           >
-            {expanded ? '▲' : '▼'}
+            <span aria-hidden="true">{expanded ? '▲' : '▼'}</span>
           </button>
           <button
             onClick={onDelete}
-            className="text-gray-300 hover:text-red-500 transition-colors text-sm leading-none"
-            title="Delete concept"
-          >✕</button>
+            className="text-gray-300 hover:text-red-500 transition-colors text-sm leading-none focus:outline-none focus:ring-2 focus:ring-red-400 rounded"
+            aria-label={`Delete concept: ${concept.name}`}
+          >
+            <span aria-hidden="true">✕</span>
+          </button>
+
+          {/* Custom sort arrows — far right */}
+          {isCustom && (
+            <div className="flex flex-col gap-0 flex-shrink-0 ml-1">
+              <button
+                onClick={onMoveUp}
+                disabled={!canUp}
+                className="text-gray-300 hover:text-gray-600 disabled:opacity-20 leading-tight text-xs px-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 rounded"
+                aria-label={`Move ${concept.name} up`}
+                aria-disabled={!canUp}
+              >
+                <span aria-hidden="true">↑</span>
+              </button>
+              <button
+                onClick={onMoveDown}
+                disabled={!canDown}
+                className="text-gray-300 hover:text-gray-600 disabled:opacity-20 leading-tight text-xs px-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 rounded"
+                aria-label={`Move ${concept.name} down`}
+                aria-disabled={!canDown}
+              >
+                <span aria-hidden="true">↓</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

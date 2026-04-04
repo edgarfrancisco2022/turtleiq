@@ -1,17 +1,47 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
 import { useStore } from '../store/useStore'
+import { getImageUrl } from '../store/imageStore'
+
+// Cache of imageId → objectURL to avoid redundant IndexedDB lookups
+const urlCache = new Map()
+
+function TiqImage({ src, alt }) {
+  const [url, setUrl] = useState(null)
+  const imageId = src?.replace('tiq-img://', '')
+
+  useEffect(() => {
+    if (!imageId) return
+    if (urlCache.has(imageId)) { setUrl(urlCache.get(imageId)); return }
+    getImageUrl(imageId).then(objectUrl => {
+      if (objectUrl) { urlCache.set(imageId, objectUrl); setUrl(objectUrl) }
+    })
+  }, [imageId])
+
+  if (!url) return <span className="text-xs text-gray-400 italic">[image loading…]</span>
+  return <img src={url} alt={alt || ''} style={{ maxWidth: '100%', height: 'auto' }} />
+}
+
+const mdComponents = {
+  img({ src, alt }) {
+    if (src?.startsWith('tiq-img://')) return <TiqImage src={src} alt={alt} />
+    return <img src={src} alt={alt || ''} style={{ maxWidth: '100%', height: 'auto' }} />
+  },
+}
+
+const MD_PLUGINS = {
+  remark: [remarkGfm, remarkMath],
+  rehype: [rehypeKatex],
+}
+
+// Pass URLs through unchanged so tiq-img:// scheme reaches the custom img renderer
+const urlTransform = url => url
 
 /**
  * Full markdown editor with Code/Preview toggle.
- * Props:
- *   conceptId  - concept ID to save to
- *   field      - 'referencesMarkdown' | 'mvkNotes' | 'markdownNotes'
- *   content    - current saved value
- *   placeholder - empty state text
  */
 export default function MarkdownEditor({ conceptId, field, content = '', placeholder = '' }) {
   const [isEditing, setIsEditing] = useState(false)
@@ -59,7 +89,7 @@ export default function MarkdownEditor({ conceptId, field, content = '', placeho
         </div>
         <div className="p-4 prose prose-sm prose-neutral max-w-none min-h-[64px]">
           {content ? (
-            <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{content}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={MD_PLUGINS.remark} rehypePlugins={MD_PLUGINS.rehype} components={mdComponents} urlTransform={urlTransform}>{content}</ReactMarkdown>
           ) : (
             <p className="text-gray-400 italic text-sm m-0">{placeholder || 'No content yet. Click Edit to add.'}</p>
           )}
@@ -115,7 +145,7 @@ export default function MarkdownEditor({ conceptId, field, content = '', placeho
       ) : (
         <div className="p-4 prose prose-sm prose-neutral max-w-none min-h-[80px]">
           {draft ? (
-            <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{draft}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={MD_PLUGINS.remark} rehypePlugins={MD_PLUGINS.rehype} components={mdComponents} urlTransform={urlTransform}>{draft}</ReactMarkdown>
           ) : (
             <p className="text-gray-400 italic text-sm m-0">Nothing to preview.</p>
           )}
@@ -127,7 +157,6 @@ export default function MarkdownEditor({ conceptId, field, content = '', placeho
 
 /**
  * Compact inline editor — no Code/Preview toggle.
- * Used for inline MVK editing in Subject/List views.
  */
 export function InlineEditor({ conceptId, field, content = '', placeholder = '' }) {
   const [isEditing, setIsEditing] = useState(false)
@@ -159,9 +188,11 @@ export function InlineEditor({ conceptId, field, content = '', placeholder = '' 
   if (!isEditing) {
     return (
       <div>
-        <div className="prose prose-xs prose-neutral max-w-none text-sm">
-          <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{content}</ReactMarkdown>
-        </div>
+        {content ? (
+          <div className="prose prose-xs prose-neutral max-w-none text-sm">
+            <ReactMarkdown remarkPlugins={MD_PLUGINS.remark} rehypePlugins={MD_PLUGINS.rehype} components={mdComponents} urlTransform={urlTransform}>{content}</ReactMarkdown>
+          </div>
+        ) : null}
         <button
           onClick={() => { setDraft(content); setIsEditing(true) }}
           className="mt-2 text-xs text-indigo-500 hover:text-indigo-700 font-medium"

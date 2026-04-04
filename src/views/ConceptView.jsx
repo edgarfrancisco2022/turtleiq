@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useApp } from '../context/AppContext'
 import MarkdownEditor from '../components/MarkdownEditor'
+import ImageSection from '../components/ImageSection'
 import { StateSelector, PriorityBadge, ReviewCounter, PinButton } from '../components/StatusBadge'
 
 const getMain = () => document.getElementById('main-content')
@@ -18,12 +19,31 @@ export default function ConceptView() {
   const tags             = useStore(s => s.tags)
   const updateConceptField = useStore(s => s.updateConceptField)
   const incrementReview  = useStore(s => s.incrementReview)
+  const decrementReview  = useStore(s => s.decrementReview)
 
   // Always scroll to top when navigating to a concept
   useEffect(() => {
     const el = getMain()
     if (el) el.scrollTop = 0
   }, [conceptId])
+
+  // Keyboard shortcuts: Backspace = back, +/- = review counter
+  useEffect(() => {
+    function onKey(e) {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) || e.target.contentEditable === 'true') return
+      if (e.key === 'Backspace') {
+        e.preventDefault()
+        sessionStorage.setItem('cv-back', '1')
+        navigate(-1)
+      } else if (e.key === '+' || e.key === '=') {
+        useStore.getState().incrementReview(conceptId)
+      } else if (e.key === '-') {
+        useStore.getState().decrementReview(conceptId)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [conceptId, navigate])
 
   if (!concept) {
     return (
@@ -109,6 +129,7 @@ export default function ConceptView() {
             <ReviewCounter
               count={concept.reviewCount}
               onIncrement={() => incrementReview(conceptId)}
+              onDecrement={() => decrementReview(conceptId)}
             />
           </div>
           <PinButton
@@ -126,6 +147,10 @@ export default function ConceptView() {
           content={concept.referencesMarkdown ?? ''}
           placeholder="Add URLs, book references, page numbers, or any source material..."
         />
+      </Section>
+
+      <Section title="Images">
+        <ImageSection conceptId={conceptId} images={concept.images ?? []} />
       </Section>
 
       <Section title="MVK — Minimum Viable Knowledge">

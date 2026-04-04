@@ -1,35 +1,145 @@
-import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useFilterSort } from '../hooks/useFilterSort'
 import FilterSortBar from '../components/FilterSortBar'
 import { StateSelector, PriorityBadge, ReviewCounter, PinButton } from '../components/StatusBadge'
 import { InlineEditor } from '../components/MarkdownEditor'
 
-const SCROLL_KEY = 'scroll-list'
+const SCROLL_KEY  = 'scroll-list'
+const LAST_ID_KEY = 'list-last-id'
+const STATE_KEY   = 'list-view-state'
 const getMain = () => document.getElementById('main-content')
+
+function isEditableTarget(e) {
+  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) ||
+    e.target.contentEditable === 'true'
+}
 
 export default function ListMode() {
   const concepts = useStore(s => s.concepts)
-  const { filtered, filters, sort, setFilter, setSort, clearFilters, hasActiveFilters, subjects, topics, tags } =
-    useFilterSort(concepts)
 
-  // Restore scroll only when navigating back from ConceptView
+  // Restore filter/sort state if returning from ConceptView (read before first render)
+  const [savedState] = useState(() => {
+    if (!sessionStorage.getItem('cv-back')) return null
+    try { return JSON.parse(sessionStorage.getItem(STATE_KEY) || 'null') } catch { return null }
+  })
+
+  const { filtered, filters, sort, setFilter, setSort, clearFilters, hasActiveFilters, subjects, topics, tags } =
+    useFilterSort(concepts, { initialFilters: savedState?.filters, initialSort: savedState?.sort })
+
+  const [focusedIdx, setFocusedIdx]   = useState(0)
+  const [expandedIds, setExpandedIds] = useState(new Set())
+  const navigate = useNavigate()
+
+  // suppressScroll: true while restoring scroll from back-navigation
+  const suppressScroll = useRef(false)
+  // backRestoring: true while restoring from back-navigation, prevents focus reset
+  const backRestoring = useRef(false)
+
+  // Scroll to top on mount; restore scroll/focus if returning from ConceptView
   useEffect(() => {
-    if (!sessionStorage.getItem('cv-back')) return
-    sessionStorage.removeItem('cv-back')
-    const saved = sessionStorage.getItem(SCROLL_KEY)
-    if (!saved) return
     const el = getMain()
-    if (el) {
-      el.scrollTop = parseInt(saved, 10)
+    if (el) el.scrollTop = 0
+
+    if (sessionStorage.getItem('cv-back')) {
+      sessionStorage.removeItem('cv-back')
+      sessionStorage.removeItem(STATE_KEY)
+      const saved = sessionStorage.getItem(SCROLL_KEY)
       sessionStorage.removeItem(SCROLL_KEY)
+      const lastId = sessionStorage.getItem(LAST_ID_KEY)
+      sessionStorage.removeItem(LAST_ID_KEY)
+
+      backRestoring.current = true
+      const idx = lastId ? filtered.findIndex(c => c.id === lastId) : -1
+      if (idx >= 0) setFocusedIdx(idx)
+
+      if (saved) {
+        suppressScroll.current = true
+        const pos = parseInt(saved, 10)
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            const el2 = getMain()
+            if (el2) el2.scrollTop = pos
+            suppressScroll.current = false
+          })
+        })
+      }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function saveScroll() {
+  // Reset focus to first item when filtered list changes or sort changes (skip during back-navigation restoration)
+  const isFirstRender = useRef(true)
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return }
+    if (backRestoring.current) { backRestoring.current = false; return }
+    setFocusedIdx(0)
+  }, [filtered.length, sort])
+
+  // Scroll focused row into view (suppressed during back-navigation restoration)
+  useEffect(() => {
+    if (suppressScroll.current) return
+    const concept = filtered[focusedIdx]
+    if (!concept) return
+    const el = document.getElementById(`lib-${concept.id}`)
+    if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [focusedIdx, filtered])
+
+  // Keyboard navigation
+  const stateRef = useRef({})
+  stateRef.current = { filtered, focusedIdx, expandedIds, filters, sort }
+
+  useEffect(() => {
+    function onKey(e) {
+      if (isEditableTarget(e)) return
+      const { filtered, focusedIdx, expandedIds, filters, sort } = stateRef.current
+      if (!filtered.length) return
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setFocusedIdx(i => Math.min(i + 1, filtered.length - 1))
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setFocusedIdx(i => Math.max(i - 1, 0))
+      } else if (e.key === 'Enter') {
+        e.preventDefault()
+        const concept = filtered[focusedIdx]
+        if (concept) {
+          sessionStorage.setItem(STATE_KEY, JSON.stringify({ filters, sort }))
+          const el = getMain()
+          if (el) sessionStorage.setItem(SCROLL_KEY, String(el.scrollTop))
+          sessionStorage.setItem(LAST_ID_KEY, concept.id)
+          navigate(`/app/concepts/${concept.id}`)
+        }
+      } else if (e.key === ' ') {
+        e.preventDefault()
+        const concept = filtered[focusedIdx]
+        if (concept) {
+          setExpandedIds(prev => {
+            const next = new Set(prev)
+            if (next.has(concept.id)) next.delete(concept.id)
+            else next.add(concept.id)
+            return next
+          })
+        }
+      } else if (e.key === '+' || e.key === '=') {
+        const concept = filtered[focusedIdx]
+        if (concept) useStore.getState().incrementReview(concept.id)
+      } else if (e.key === '-') {
+        const concept = filtered[focusedIdx]
+        if (concept) useStore.getState().decrementReview(concept.id)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [navigate])
+
+  function saveState(conceptId) {
+    sessionStorage.setItem(STATE_KEY, JSON.stringify({ filters, sort }))
     const el = getMain()
     if (el) sessionStorage.setItem(SCROLL_KEY, String(el.scrollTop))
+    sessionStorage.setItem(LAST_ID_KEY, conceptId)
   }
 
   return (
@@ -53,8 +163,23 @@ export default function ListMode() {
         </div>
       ) : (
         <div className="space-y-2">
-          {filtered.map(concept => (
-            <ListConceptRow key={concept.id} concept={concept} onSaveScroll={saveScroll} />
+          {filtered.map((concept, idx) => (
+            <ListConceptRow
+              key={concept.id}
+              concept={concept}
+              focused={idx === focusedIdx}
+              expanded={expandedIds.has(concept.id)}
+              onToggleExpand={() => {
+                setExpandedIds(prev => {
+                  const next = new Set(prev)
+                  if (next.has(concept.id)) next.delete(concept.id)
+                  else next.add(concept.id)
+                  return next
+                })
+              }}
+              onFocus={() => setFocusedIdx(idx)}
+              onSaveState={() => saveState(concept.id)}
+            />
           ))}
         </div>
       )}
@@ -62,21 +187,26 @@ export default function ListMode() {
   )
 }
 
-function ListConceptRow({ concept, onSaveScroll }) {
-  const [expanded, setExpanded] = useState(false)
+function ListConceptRow({ concept, focused, expanded, onToggleExpand, onFocus, onSaveState }) {
   const updateConceptField = useStore(s => s.updateConceptField)
   const incrementReview    = useStore(s => s.incrementReview)
+  const decrementReview    = useStore(s => s.decrementReview)
   const subjects = useStore(s => s.subjects)
-
   const conceptSubjects = subjects.filter(s => concept.subjectIds.includes(s.id))
 
   return (
-    <div className="bg-white border border-gray-100 rounded-xl shadow-sm">
+    <div
+      id={`lib-${concept.id}`}
+      className={`bg-white border rounded-xl shadow-sm transition-all ${
+        focused ? 'border-indigo-300 ring-2 ring-indigo-200 ring-inset' : 'border-gray-100'
+      }`}
+      onClick={onFocus}
+    >
       <div className="flex items-center gap-3 px-4 py-3">
         <div className="flex-1 min-w-0">
           <Link
-            to={`/concepts/${concept.id}`}
-            onClick={onSaveScroll}
+            to={`/app/concepts/${concept.id}`}
+            onClick={onSaveState}
             className="font-medium text-gray-900 hover:text-indigo-700 transition-colors"
           >
             {concept.pinned && <span className="text-amber-400 mr-1.5 text-xs">★</span>}
@@ -94,10 +224,14 @@ function ListConceptRow({ concept, onSaveScroll }) {
         <div className="flex items-center gap-2 flex-shrink-0">
           <StateSelector value={concept.state} onChange={v => updateConceptField(concept.id, 'state', v)} />
           <PriorityBadge value={concept.priority} onChange={v => updateConceptField(concept.id, 'priority', v)} />
-          <ReviewCounter count={concept.reviewCount} onIncrement={() => incrementReview(concept.id)} />
+          <ReviewCounter
+            count={concept.reviewCount}
+            onIncrement={() => incrementReview(concept.id)}
+            onDecrement={() => decrementReview(concept.id)}
+          />
           <PinButton pinned={concept.pinned} onToggle={() => updateConceptField(concept.id, 'pinned', !concept.pinned)} />
           <button
-            onClick={() => setExpanded(x => !x)}
+            onClick={onToggleExpand}
             className="text-gray-400 hover:text-gray-700 text-xs w-5 text-center transition-colors"
             title={expanded ? 'Collapse' : 'Expand MVK'}
           >

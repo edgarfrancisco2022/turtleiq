@@ -13,6 +13,7 @@ const DEFAULT_CONCEPT_EXTRAS = {
   priority: 'MEDIUM', // LOW | MEDIUM | HIGH
   reviewCount: 0,
   pinned: false,
+  images: [],         // [{ imageId, fileName }]
 }
 
 function resolveNames(names, collection) {
@@ -50,6 +51,7 @@ export const useStore = create(
       tags: [],
       subjectOrders: {},     // { [subjectId]: conceptId[] }
       subjectSortModes: {},  // { [subjectId]: 'alpha' | 'date' | 'custom' }
+      studySessions: [],     // [{ id, minutes, subjectId: null | string, createdAt }]
 
       addConcept({ name, subjects, topics, tags }) {
         const state = get()
@@ -147,6 +149,14 @@ export const useStore = create(
         }))
       },
 
+      decrementReview(id) {
+        set(state => ({
+          concepts: state.concepts.map(c =>
+            c.id === id ? { ...c, reviewCount: Math.max(0, (c.reviewCount ?? 0) - 1) } : c
+          ),
+        }))
+      },
+
       saveContent(conceptId, field, value) {
         if (!CONTENT_FIELDS.has(field)) {
           console.warn(`saveContent: unknown field "${field}"`)
@@ -154,6 +164,26 @@ export const useStore = create(
         }
         set(state => ({
           concepts: state.concepts.map(c => c.id === conceptId ? { ...c, [field]: value } : c),
+        }))
+      },
+
+      addConceptImage(conceptId, imageId, fileName) {
+        set(state => ({
+          concepts: state.concepts.map(c =>
+            c.id === conceptId
+              ? { ...c, images: [...(c.images || []), { imageId, fileName }] }
+              : c
+          ),
+        }))
+      },
+
+      removeConceptImage(conceptId, imageId) {
+        set(state => ({
+          concepts: state.concepts.map(c =>
+            c.id === conceptId
+              ? { ...c, images: (c.images || []).filter(img => img.imageId !== imageId) }
+              : c
+          ),
         }))
       },
 
@@ -184,37 +214,56 @@ export const useStore = create(
           return { subjectOrders: { ...state.subjectOrders, [subjectId]: order } }
         })
       },
+
+      addStudySession({ minutes, subjectId }) {
+        set(state => ({
+          studySessions: [
+            ...state.studySessions,
+            { id: uid(), minutes, subjectId: subjectId || null, createdAt: new Date().toISOString() },
+          ],
+        }))
+      },
     }),
     {
       name: 'turtleiq-storage',
-      version: 2,
+      version: 3,
       migrate(persistedState, version) {
         if (!persistedState) {
-          return { concepts: [], subjects: [], topics: [], tags: [], subjectOrders: {}, subjectSortModes: {} }
+          return { concepts: [], subjects: [], topics: [], tags: [], subjectOrders: {}, subjectSortModes: {}, studySessions: [] }
         }
+        let state = persistedState
         if (version < 2) {
-          return {
-            subjects: persistedState.subjects || [],
-            topics: persistedState.topics || [],
-            tags: persistedState.tags || [],
+          state = {
+            subjects: state.subjects || [],
+            topics: state.topics || [],
+            tags: state.tags || [],
             subjectOrders: {},
             subjectSortModes: {},
-            concepts: (persistedState.concepts || []).map(c => ({
+            studySessions: [],
+            concepts: (state.concepts || []).map(c => ({
               subjectIds: [],
               topicIds: [],
               tagIds: [],
               ...DEFAULT_CONCEPT_EXTRAS,
               ...c,
-              // Convert references array → markdown string
               referencesMarkdown: (c.references || []).map(r => r.text || '').filter(Boolean).join('\n\n'),
               markdownNotes: c.markdownNotes || '',
-              // Remove old fields
               references: undefined,
               subtopicIds: undefined,
             })),
           }
         }
-        return persistedState
+        if (version < 3) {
+          state = {
+            ...state,
+            studySessions: state.studySessions || [],
+            concepts: (state.concepts || []).map(c => ({
+              ...c,
+              images: c.images || [],
+            })),
+          }
+        }
+        return state
       },
     }
   )

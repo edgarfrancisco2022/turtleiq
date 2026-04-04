@@ -1,56 +1,132 @@
-import { useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useFilterSort } from '../hooks/useFilterSort'
 import FilterSortBar from '../components/FilterSortBar'
 import { ReviewCounter } from '../components/StatusBadge'
 
-const SCROLL_KEY = 'scroll-index'
+const SCROLL_KEY  = 'scroll-index'
 const LAST_ID_KEY = 'index-last-id'
+const STATE_KEY   = 'index-view-state'
 const getMain = () => document.getElementById('main-content')
+
+function isEditableTarget(e) {
+  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) ||
+    e.target.contentEditable === 'true'
+}
 
 export default function IndexMode() {
   const concepts = useStore(s => s.concepts)
   const incrementReview = useStore(s => s.incrementReview)
-  const { filtered, filters, sort, setFilter, setSort, clearFilters, hasActiveFilters, subjects, topics, tags } =
-    useFilterSort(concepts)
+  const decrementReview = useStore(s => s.decrementReview)
 
-  // Restore scroll only when navigating back from ConceptView
+  // Restore filter/sort state if returning from ConceptView (read before first render)
+  const [savedState] = useState(() => {
+    if (!sessionStorage.getItem('cv-back')) return null
+    try { return JSON.parse(sessionStorage.getItem(STATE_KEY) || 'null') } catch { return null }
+  })
+
+  const { filtered, filters, sort, setFilter, setSort, clearFilters, hasActiveFilters, subjects, topics, tags } =
+    useFilterSort(concepts, { initialFilters: savedState?.filters, initialSort: savedState?.sort })
+
+  const [focusedIdx, setFocusedIdx] = useState(0)
+  const navigate = useNavigate()
+
+  // suppressScroll: true while we're restoring scroll from a back-navigation
+  const suppressScroll = useRef(false)
+
+  // Scroll to top on mount; restore scroll/focus if returning from ConceptView
   useEffect(() => {
-    const lastId = sessionStorage.getItem(LAST_ID_KEY)
+    const el = getMain()
+    if (el) el.scrollTop = 0
 
     if (sessionStorage.getItem('cv-back')) {
       sessionStorage.removeItem('cv-back')
+      sessionStorage.removeItem(STATE_KEY)
       const savedScroll = sessionStorage.getItem(SCROLL_KEY)
+      sessionStorage.removeItem(SCROLL_KEY)
+      const lastId = sessionStorage.getItem(LAST_ID_KEY)
+      sessionStorage.removeItem(LAST_ID_KEY)
+
+      const idx = lastId ? filtered.findIndex(c => c.id === lastId) : -1
+      if (idx >= 0) setFocusedIdx(idx)
+
       if (savedScroll) {
-        const el = getMain()
-        if (el) {
-          el.scrollTop = parseInt(savedScroll, 10)
-          sessionStorage.removeItem(SCROLL_KEY)
-        }
+        suppressScroll.current = true
+        const pos = parseInt(savedScroll, 10)
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            const el2 = getMain()
+            if (el2) el2.scrollTop = pos
+            suppressScroll.current = false
+          })
+        })
       }
     }
-
-    // Briefly highlight the last-visited concept
-    if (lastId) {
-      sessionStorage.removeItem(LAST_ID_KEY)
-      setTimeout(() => {
-        const el = document.getElementById(`idx-${lastId}`)
-        if (el) {
-          el.classList.add('bg-indigo-50')
-          setTimeout(() => el.classList.remove('bg-indigo-50'), 1200)
-        }
-      }, 100)
-    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Reset focus to first item when sort changes (skip on first render)
+  const isFirstRender = useRef(true)
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return }
+    setFocusedIdx(0)
+  }, [sort])
+
+  // Scroll focused row into view (suppressed during back-navigation restoration)
+  useEffect(() => {
+    if (suppressScroll.current) return
+    const concept = filtered[focusedIdx]
+    if (!concept) return
+    const el = document.getElementById(`idx-${concept.id}`)
+    if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [focusedIdx, filtered])
+
+  // Keyboard navigation
+  const stateRef = useRef({})
+  stateRef.current = { filtered, focusedIdx, filters, sort }
+
+  useEffect(() => {
+    function onKey(e) {
+      if (isEditableTarget(e)) return
+      const { filtered, focusedIdx, filters, sort } = stateRef.current
+      if (!filtered.length) return
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setFocusedIdx(i => Math.min(i + 1, filtered.length - 1))
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setFocusedIdx(i => Math.max(i - 1, 0))
+      } else if (e.key === 'Enter') {
+        e.preventDefault()
+        const concept = filtered[focusedIdx]
+        if (concept) {
+          sessionStorage.setItem(STATE_KEY, JSON.stringify({ filters, sort }))
+          const el = getMain()
+          if (el) sessionStorage.setItem(SCROLL_KEY, String(el.scrollTop))
+          sessionStorage.setItem(LAST_ID_KEY, concept.id)
+          navigate(`/app/concepts/${concept.id}`)
+        }
+      } else if (e.key === '+' || e.key === '=') {
+        const concept = filtered[focusedIdx]
+        if (concept) incrementReview(concept.id)
+      } else if (e.key === '-') {
+        const concept = filtered[focusedIdx]
+        if (concept) decrementReview(concept.id)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [navigate, incrementReview, decrementReview])
+
   function handleConceptClick(id) {
+    sessionStorage.setItem(STATE_KEY, JSON.stringify({ filters, sort }))
     const el = getMain()
     if (el) sessionStorage.setItem(SCROLL_KEY, String(el.scrollTop))
     sessionStorage.setItem(LAST_ID_KEY, id)
   }
 
-  // Group alphabetically when sort is alpha/alpha_desc
   const isAlpha = sort === 'alpha' || sort === 'alpha_desc'
 
   const grouped = useMemo(() => {
@@ -65,6 +141,9 @@ export default function IndexMode() {
     if (sort === 'alpha_desc') entries.reverse()
     return entries.map(([letter, concepts]) => ({ letter, concepts }))
   }, [filtered, isAlpha, sort])
+
+  // Flat list for focus index computation
+  const flatList = useMemo(() => grouped.flatMap(g => g.concepts), [grouped])
 
   return (
     <div className="max-w-3xl mx-auto px-8 py-10">
@@ -95,23 +174,36 @@ export default function IndexMode() {
                   <div className="flex-1 h-px bg-gray-100" />
                 </div>
               )}
-              {group.map(c => (
-                <div
-                  key={c.id}
-                  id={`idx-${c.id}`}
-                  className="flex items-center group py-1 border-b border-gray-50 last:border-0 transition-colors rounded"
-                >
-                  <Link
-                    to={`/concepts/${c.id}`}
-                    onClick={() => handleConceptClick(c.id)}
-                    className="flex-1 text-sm text-gray-800 hover:text-indigo-700 transition-colors py-0.5 pl-1"
+              {group.map(c => {
+                const globalIdx = flatList.findIndex(fc => fc.id === c.id)
+                const isFocused = globalIdx === focusedIdx
+                return (
+                  <div
+                    key={c.id}
+                    id={`idx-${c.id}`}
+                    className={`flex items-center group py-1 border-b border-gray-50 last:border-0 rounded transition-colors ${
+                      isFocused ? 'bg-indigo-50' : ''
+                    }`}
+                    onClick={() => setFocusedIdx(globalIdx)}
                   >
-                    {c.pinned && <span className="text-amber-400 mr-1.5 text-[11px]">★</span>}
-                    {c.name}
-                  </Link>
-                  <ReviewCounter count={c.reviewCount} onIncrement={() => incrementReview(c.id)} />
-                </div>
-              ))}
+                    <div className="flex-1 min-w-0 py-0.5 pl-1">
+                      <Link
+                        to={`/app/concepts/${c.id}`}
+                        onClick={() => handleConceptClick(c.id)}
+                        className="text-sm text-gray-800 hover:text-indigo-700 transition-colors"
+                      >
+                        {c.pinned && <span className="text-amber-400 mr-1.5 text-[11px]">★</span>}
+                        {c.name}
+                      </Link>
+                    </div>
+                    <ReviewCounter
+                      count={c.reviewCount}
+                      onIncrement={() => incrementReview(c.id)}
+                      onDecrement={() => decrementReview(c.id)}
+                    />
+                  </div>
+                )
+              })}
             </div>
           ))}
         </div>

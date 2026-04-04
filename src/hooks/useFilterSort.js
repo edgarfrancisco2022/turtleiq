@@ -35,25 +35,25 @@ export function sortConcepts(concepts, sort) {
 
 function filterConcepts(concepts, filters) {
   return concepts.filter(c => {
-    if (filters.subject && !(c.subjectIds || []).includes(filters.subject)) return false
-    if (filters.topic   && !(c.topicIds  || []).includes(filters.topic))   return false
-    if (filters.tag     && !(c.tagIds    || []).includes(filters.tag))     return false
-    if (filters.state   && (c.state    ?? 'NEW')    !== filters.state)    return false
-    if (filters.priority && (c.priority ?? 'MEDIUM') !== filters.priority) return false
+    if (filters.subjects?.length  && !filters.subjects.some(id => (c.subjectIds || []).includes(id)))  return false
+    if (filters.topics?.length    && !filters.topics.some(id => (c.topicIds || []).includes(id)))      return false
+    if (filters.tags?.length      && !filters.tags.some(id => (c.tagIds || []).includes(id)))          return false
+    if (filters.states?.length    && !filters.states.includes(c.state ?? 'NEW'))                       return false
+    if (filters.priorities?.length && !filters.priorities.includes(c.priority ?? 'MEDIUM'))            return false
     if (filters.pinned  && !c.pinned) return false
     return true
   })
 }
 
-const EMPTY_FILTERS = { subject: '', topic: '', tag: '', state: '', priority: '', pinned: false }
+const EMPTY_FILTERS = { subjects: [], topics: [], tags: [], states: [], priorities: [], pinned: false }
 
-export function useFilterSort(concepts, { defaultSort = 'alpha' } = {}) {
+export function useFilterSort(concepts, { defaultSort = 'alpha', initialFilters, initialSort } = {}) {
   const subjects = useStore(s => s.subjects)
   const topics   = useStore(s => s.topics)
   const tags     = useStore(s => s.tags)
 
-  const [filters, setFiltersState] = useState(EMPTY_FILTERS)
-  const [sort, setSort] = useState(defaultSort)
+  const [filters, setFiltersState] = useState(() => initialFilters ?? EMPTY_FILTERS)
+  const [sort, setSort] = useState(() => initialSort ?? defaultSort)
 
   function setFilter(key, value) {
     setFiltersState(f => ({ ...f, [key]: value }))
@@ -64,8 +64,8 @@ export function useFilterSort(concepts, { defaultSort = 'alpha' } = {}) {
   }
 
   const hasActiveFilters = Boolean(
-    filters.subject || filters.topic || filters.tag ||
-    filters.state   || filters.priority || filters.pinned
+    filters.subjects?.length || filters.topics?.length || filters.tags?.length ||
+    filters.states?.length   || filters.priorities?.length || filters.pinned
   )
 
   const filtered = useMemo(() => {

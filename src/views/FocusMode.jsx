@@ -1,10 +1,16 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useFilterSort } from '../hooks/useFilterSort'
 import FilterSortBar from '../components/FilterSortBar'
 import { StateSelector, PriorityBadge, ReviewCounter, PinButton } from '../components/StatusBadge'
 import MarkdownEditor from '../components/MarkdownEditor'
+import ImageSection from '../components/ImageSection'
+
+function isEditableTarget(e) {
+  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) ||
+    e.target.contentEditable === 'true'
+}
 
 export default function FocusMode() {
   const concepts = useStore(s => s.concepts)
@@ -37,10 +43,43 @@ export default function FocusMode() {
 
   const updateConceptField = useStore(s => s.updateConceptField)
   const incrementReview    = useStore(s => s.incrementReview)
+  const decrementReview    = useStore(s => s.decrementReview)
+
+  // Keyboard navigation: ←/→ for prev/next, +/- for review counter
+  const stateRef = useRef({})
+  stateRef.current = { filtered, currentIndex }
+
+  useEffect(() => {
+    function onKey(e) {
+      if (isEditableTarget(e)) return
+      const { filtered, currentIndex } = stateRef.current
+      if (!filtered.length) return
+
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        if (currentIndex > 0) goTo(currentIndex - 1)
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault()
+        if (currentIndex < filtered.length - 1) goTo(currentIndex + 1)
+      } else if (e.key === '+' || e.key === '=') {
+        const c = filtered[currentIndex]
+        if (c) useStore.getState().incrementReview(c.id)
+      } else if (e.key === '-') {
+        const c = filtered[currentIndex]
+        if (c) useStore.getState().decrementReview(c.id)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
-    <div className="max-w-2xl mx-auto px-8 py-10">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Focus</h1>
+    <div className="max-w-3xl mx-auto px-8 py-10">
+      <div className="flex items-baseline justify-between mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Focus</h1>
+        <span className="text-sm text-gray-400">{filtered.length} total</span>
+      </div>
 
       <FilterSortBar
         filters={filters} sort={sort}
@@ -86,7 +125,7 @@ export default function FocusMode() {
                   {concept.name}
                 </h2>
                 <Link
-                  to={`/concepts/${concept.id}`}
+                  to={`/app/concepts/${concept.id}`}
                   className="text-xs text-gray-400 hover:text-indigo-600 ml-4 flex-shrink-0 mt-1"
                   title="Open full concept page"
                 >
@@ -98,7 +137,7 @@ export default function FocusMode() {
               <div className="flex flex-wrap items-center gap-3 pb-5 border-b border-gray-100 mb-5">
                 <StateSelector value={concept.state} onChange={v => updateConceptField(concept.id, 'state', v)} />
                 <PriorityBadge value={concept.priority} onChange={v => updateConceptField(concept.id, 'priority', v)} />
-                <ReviewCounter count={concept.reviewCount} onIncrement={() => incrementReview(concept.id)} />
+                <ReviewCounter count={concept.reviewCount} onIncrement={() => incrementReview(concept.id)} onDecrement={() => decrementReview(concept.id)} />
                 <PinButton pinned={concept.pinned} onToggle={() => updateConceptField(concept.id, 'pinned', !concept.pinned)} />
               </div>
 
@@ -115,6 +154,12 @@ export default function FocusMode() {
                   hideLabel="Hide Notes"
                   visible={activeSection === 'notes'}
                   onToggle={() => toggleSection('notes')}
+                />
+                <RevealButton
+                  label="Show Images"
+                  hideLabel="Hide Images"
+                  visible={activeSection === 'images'}
+                  onToggle={() => toggleSection('images')}
                 />
                 <RevealButton
                   label="Show References"
@@ -157,6 +202,13 @@ export default function FocusMode() {
                     content={concept.referencesMarkdown ?? ''}
                     placeholder="Add URLs, book references, page numbers, or any source material..."
                   />
+                </RevealSection>
+              )}
+
+              {/* Images */}
+              {activeSection === 'images' && (
+                <RevealSection title="Images">
+                  <ImageSection conceptId={concept.id} images={concept.images ?? []} />
                 </RevealSection>
               )}
             </div>
