@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useFilterSort } from '../hooks/useFilterSort'
 import FilterSortBar from '../components/FilterSortBar'
-import { STATE_STYLES, PRIORITY_STYLES } from '../components/StatusBadge'
+import { STATE_STYLES, PRIORITY_STYLES, PinIcon } from '../components/StatusBadge'
 
 const SCROLL_KEY  = 'scroll-search'
 const LAST_ID_KEY = 'search-last-id'
@@ -151,7 +151,7 @@ export default function SearchView() {
           onChange={e => setFilter('_nameQuery', e.target.value)}
           placeholder="Search concept names..."
           aria-label="Search concept names"
-          className="w-full border border-gray-200 rounded-xl pl-9 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+          className="w-full border border-gray-200 rounded pl-9 pr-4 py-1 text-sm bg-white transition-colors hover:border-blue-200 hover:bg-blue-50/30 focus:outline-none focus:border-blue-400 focus:bg-blue-50/40"
           autoFocus={savedState === null}
         />
       </div>
@@ -180,7 +180,7 @@ function Results({ concepts, focusedIdx, setFocusedIdx, saveState }) {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       {concepts.map((c, idx) => {
         const cSubjects = subjects.filter(s => c.subjectIds.includes(s.id))
         const cTopics   = topics.filter(t => c.topicIds.includes(t.id))
@@ -191,28 +191,30 @@ function Results({ concepts, focusedIdx, setFocusedIdx, saveState }) {
             key={c.id}
             id={`search-${c.id}`}
             onClick={() => setFocusedIdx(idx)}
-            className={`bg-white border rounded-xl px-5 py-4 transition-all group ${
+            className={`border rounded-md px-4 py-2 transition-all group ${
               isFocused
-                ? 'border-indigo-300 ring-2 ring-indigo-200 ring-inset shadow-sm'
-                : 'border-gray-100 hover:border-gray-200'
+                ? 'bg-gray-100/80 border-gray-300'
+                : 'bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300'
             }`}
           >
-            <div className="flex items-center justify-between mb-1.5">
-              <Link
-                to={`/app/concepts/${c.id}`}
-                onClick={() => saveState(c.id)}
-                className={`font-semibold transition-colors ${isFocused ? 'text-indigo-700' : 'text-gray-900 hover:text-indigo-700'}`}
-              >
-                {c.pinned && <span className="text-amber-400 mr-1.5 text-xs">★</span>}
-                {c.name}
-              </Link>
-              <div className="flex items-center gap-1.5">
+            <div className="flex items-start justify-between gap-2 mb-1.5">
+              <div className="flex-1 min-w-0">
+                <Link
+                  to={`/app/concepts/${c.id}`}
+                  onClick={() => saveState(c.id)}
+                  className="text-sm font-medium text-gray-900 hover:text-gray-600 transition-colors break-words"
+                >
+                  {c.pinned && <PinIcon size={10} className="inline text-amber-400 mr-1.5 -mt-px" />}
+                  {c.name}
+                </Link>
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
                 <span className={`text-xs px-2 py-0.5 rounded-full ${STATE_STYLES[c.state ?? 'NEW']}`}>{c.state ?? 'NEW'}</span>
                 <span className={`text-xs px-2 py-0.5 rounded-full ${PRIORITY_STYLES[c.priority ?? 'MEDIUM']}`}>{c.priority ?? 'MEDIUM'}</span>
               </div>
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {cSubjects.map(s => <span key={s.id} className="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full">{s.name}</span>)}
+              {cSubjects.map(s => <span key={s.id} className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{s.name}</span>)}
               {cTopics.map(t => <span key={t.id} className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">{t.name}</span>)}
               {cTags.map(t => <span key={t.id} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">#{t.name}</span>)}
             </div>

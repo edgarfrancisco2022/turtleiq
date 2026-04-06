@@ -82,7 +82,7 @@ export default function MarkdownEditor({ conceptId, field, content = '', placeho
         <div className="flex justify-end px-4 py-2 border-b border-gray-100">
           <button
             onClick={startEdit}
-            className="text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
+            className="text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
           >
             Edit
           </button>
@@ -125,7 +125,7 @@ export default function MarkdownEditor({ conceptId, field, content = '', placeho
           </button>
           <button
             onClick={handleSave}
-            className="text-xs bg-indigo-600 text-white font-medium px-3 py-1 rounded-md hover:bg-indigo-700"
+            className="text-xs bg-blue-600 text-white font-medium px-3 py-1 rounded-md hover:bg-blue-700"
           >
             Save
           </button>
@@ -156,12 +156,20 @@ export default function MarkdownEditor({ conceptId, field, content = '', placeho
 }
 
 /**
- * Compact inline editor — no Code/Preview toggle.
+ * Compact inline editor for the MVK panel — matches MarkdownEditor visual style.
+ * Toolbar lives outside the scrollable content area so it is always visible.
  */
 export function InlineEditor({ conceptId, field, content = '', placeholder = '' }) {
   const [isEditing, setIsEditing] = useState(false)
-  const [draft, setDraft] = useState(content)
+  const [draft, setDraft]         = useState(content)
+  const [viewMode, setViewMode]   = useState('code')
   const saveContent = useStore(s => s.saveContent)
+
+  function startEdit() {
+    setDraft(content)
+    setViewMode('code')
+    setIsEditing(true)
+  }
 
   function handleSave() {
     saveContent(conceptId, field, draft)
@@ -187,47 +195,84 @@ export function InlineEditor({ conceptId, field, content = '', placeholder = '' 
 
   if (!isEditing) {
     return (
-      <div>
-        {content ? (
-          <div className="prose prose-xs prose-neutral max-w-none text-sm">
-            <ReactMarkdown remarkPlugins={MD_PLUGINS.remark} rehypePlugins={MD_PLUGINS.rehype} components={mdComponents} urlTransform={urlTransform}>{content}</ReactMarkdown>
-          </div>
-        ) : null}
-        <button
-          onClick={() => { setDraft(content); setIsEditing(true) }}
-          className="mt-2 text-xs text-indigo-500 hover:text-indigo-700 font-medium"
-        >
-          Edit MVK
-        </button>
+      <div className="bg-white overflow-hidden">
+        {/* Toolbar — never scrolls */}
+        <div className="flex justify-end px-4 py-2 border-b border-gray-100 bg-gray-50">
+          <button
+            onClick={startEdit}
+            className="text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
+          >
+            Edit
+          </button>
+        </div>
+        {/* Scrollable content */}
+        <div className="px-4 py-3 max-h-32 overflow-y-auto">
+          {content ? (
+            <div className="prose prose-xs prose-neutral max-w-none text-sm">
+              <ReactMarkdown remarkPlugins={MD_PLUGINS.remark} rehypePlugins={MD_PLUGINS.rehype} components={mdComponents} urlTransform={urlTransform}>{content}</ReactMarkdown>
+            </div>
+          ) : (
+            <p className="text-xs text-gray-400 italic m-0">{placeholder || 'No MVK notes. Click Edit to add.'}</p>
+          )}
+        </div>
       </div>
     )
   }
 
   return (
-    <div>
-      <textarea
-        value={draft}
-        onChange={e => setDraft(e.target.value)}
-        onKeyDown={handleKeyDown}
-        className="w-full p-2 text-sm text-gray-800 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none leading-relaxed bg-white"
-        rows={4}
-        placeholder={placeholder}
-        autoFocus
-      />
-      <div className="flex gap-2 mt-2">
-        <button
-          onClick={handleCancel}
-          className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 border border-gray-200 rounded-md"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={handleSave}
-          className="text-xs bg-indigo-600 text-white px-3 py-1 rounded-md hover:bg-indigo-700"
-        >
-          Save
-        </button>
+    <div className="bg-white overflow-hidden">
+      {/* Toolbar — never scrolls */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 bg-gray-50">
+        <div className="flex gap-1">
+          {['code', 'preview'].map(mode => (
+            <button
+              key={mode}
+              onClick={() => setViewMode(mode)}
+              className={`text-xs px-3 py-1 rounded-md font-medium capitalize transition-colors ${
+                viewMode === mode
+                  ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {mode}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={handleCancel}
+            className="text-xs text-gray-500 hover:text-gray-700 font-medium px-3 py-1 border border-gray-200 rounded-md bg-white"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            className="text-xs bg-blue-600 text-white font-medium px-3 py-1 rounded-md hover:bg-blue-700"
+          >
+            Save
+          </button>
+        </div>
       </div>
+      {/* Scrollable edit area */}
+      {viewMode === 'code' ? (
+        <textarea
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onKeyDown={handleKeyDown}
+          className="w-full px-4 py-3 text-sm font-mono text-gray-800 focus:outline-none resize-none leading-relaxed max-h-32 overflow-y-auto"
+          rows={4}
+          placeholder={placeholder}
+          autoFocus
+        />
+      ) : (
+        <div className="px-4 py-3 max-h-32 overflow-y-auto prose prose-xs prose-neutral max-w-none text-sm">
+          {draft ? (
+            <ReactMarkdown remarkPlugins={MD_PLUGINS.remark} rehypePlugins={MD_PLUGINS.rehype} components={mdComponents} urlTransform={urlTransform}>{draft}</ReactMarkdown>
+          ) : (
+            <p className="text-gray-400 italic text-sm m-0">Nothing to preview.</p>
+          )}
+        </div>
+      )}
     </div>
   )
 }

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { SORT_LABELS } from '../hooks/useFilterSort'
+import { PinIcon } from './StatusBadge'
 
 const STATES = ['NEW', 'LEARNING', 'REVIEWING', 'MEMORIZING', 'STORED']
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH']
@@ -61,9 +62,9 @@ function MultiSelectFilter({ label, options, selected, onToggle, onClear }) {
         aria-expanded={open}
         aria-controls={listId}
         aria-label={isActive ? `Filter by ${label}, ${selected.length} selected` : `Filter by ${label}`}
-        className={`text-xs border rounded-md px-2.5 py-1 cursor-pointer flex items-center gap-1.5 transition-all select-none focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
+        className={`text-xs border rounded-md px-2.5 py-1 cursor-pointer flex items-center gap-1.5 transition-all select-none focus:outline-none focus:ring-2 focus:ring-blue-400 ${
           isActive
-            ? 'border-indigo-300 text-indigo-700 bg-indigo-50 font-medium'
+            ? 'border-blue-300 text-blue-700 bg-blue-50 font-medium'
             : 'border-gray-200 text-gray-600 bg-white hover:border-gray-300 hover:bg-gray-50/80'
         }`}
       >
@@ -77,11 +78,11 @@ function MultiSelectFilter({ label, options, selected, onToggle, onClear }) {
           <button
             onClick={onClear}
             className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-xs text-left transition-colors ${
-              !isActive ? 'text-indigo-600 font-medium' : 'text-gray-500 hover:bg-gray-50'
+              !isActive ? 'text-blue-600 font-medium' : 'text-gray-500 hover:bg-gray-50'
             }`}
           >
             <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-all ${
-              !isActive ? 'border-indigo-400 bg-indigo-500' : 'border-gray-300'
+              !isActive ? 'border-blue-400 bg-blue-500' : 'border-gray-300'
             }`}>
               {!isActive && <Checkmark />}
             </span>
@@ -97,11 +98,11 @@ function MultiSelectFilter({ label, options, selected, onToggle, onClear }) {
                 key={opt.value}
                 onClick={() => onToggle(opt.value)}
                 className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-xs text-left transition-colors ${
-                  checked ? 'text-indigo-700 bg-indigo-50/60' : 'text-gray-700 hover:bg-gray-50'
+                  checked ? 'text-blue-700 bg-blue-50/60' : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
                 <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-all ${
-                  checked ? 'border-indigo-400 bg-indigo-500' : 'border-gray-300'
+                  checked ? 'border-blue-400 bg-blue-500' : 'border-gray-300'
                 }`}>
                   {checked && <Checkmark />}
                 </span>
@@ -116,7 +117,7 @@ function MultiSelectFilter({ label, options, selected, onToggle, onClear }) {
   )
 }
 
-const SEL = 'text-xs border border-gray-200 rounded-md px-2 py-1 text-gray-600 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400 cursor-pointer'
+const SEL = 'text-xs border border-gray-200 rounded-md px-2 py-1 text-gray-600 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer'
 
 export default function FilterSortBar({
   filters,
@@ -221,13 +222,13 @@ export default function FilterSortBar({
           onClick={() => setFilter('pinned', !filters.pinned)}
           aria-pressed={!!filters.pinned}
           aria-label={filters.pinned ? 'Show all concepts (pinned filter active)' : 'Show only pinned concepts'}
-          className={`text-xs px-2.5 py-1 rounded-md border transition-all select-none focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
+          className={`text-xs px-2.5 py-1 rounded-md border transition-all select-none focus:outline-none focus:ring-2 focus:ring-blue-400 ${
             filters.pinned
               ? 'border-amber-300 bg-amber-50 text-amber-600 font-medium'
               : 'border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50/80'
           }`}
         >
-          <span aria-hidden="true">★</span> Pinned
+          <PinIcon size={10} className="inline mr-1 -mt-px" /> Pinned
         </button>
       )}
 

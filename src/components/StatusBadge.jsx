@@ -7,14 +7,14 @@ export const STATE_STYLES = {
   NEW:        'bg-slate-100 text-slate-700',
   LEARNING:   'bg-blue-50 text-blue-700',
   REVIEWING:  'bg-amber-50 text-amber-700',
-  MEMORIZING: 'bg-purple-50 text-purple-700',
+  MEMORIZING: 'bg-teal-50 text-teal-700',
   STORED:     'bg-emerald-50 text-emerald-700',
 }
 
 export const PRIORITY_STYLES = {
   LOW:    'bg-slate-100 text-slate-700',
   MEDIUM: 'bg-amber-50 text-amber-600',
-  HIGH:   'bg-rose-50 text-rose-600',
+  HIGH:   'bg-red-50 text-red-600',
 }
 
 const ChevronIcon = () => (
@@ -74,7 +74,7 @@ function DropdownPill({ options, value, onChange, styleMap, alignRight = false }
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={`${value || options[0]}, change value`}
-        className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-1 ${styleMap[value] || styleMap[options[0]]}`}
+        className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1 ${styleMap[value] || styleMap[options[0]]}`}
       >
         {value || options[0]}
         <ChevronIcon aria-hidden="true" />
@@ -140,7 +140,7 @@ export function ReviewCounter({ count = 0, onIncrement, onDecrement }) {
         onMouseDown={e => e.stopPropagation()}
         onClick={e => { e.stopPropagation(); e.preventDefault(); if (n > 0) onDecrement?.() }}
         disabled={n === 0}
-        className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors text-sm font-bold leading-none disabled:opacity-25 disabled:pointer-events-none"
+        className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors text-sm font-bold leading-none disabled:opacity-25 disabled:pointer-events-none"
         title="Decrement review count"
       >
         −
@@ -150,12 +150,27 @@ export function ReviewCounter({ count = 0, onIncrement, onDecrement }) {
         type="button"
         onMouseDown={e => e.stopPropagation()}
         onClick={e => { e.stopPropagation(); e.preventDefault(); onIncrement() }}
-        className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors text-sm font-bold leading-none"
+        className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors text-sm font-bold leading-none"
         title="Increment review count"
       >
         +
       </button>
     </div>
+  )
+}
+
+export function PinIcon({ size = 12, className = '' }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      width={size}
+      height={size}
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M4.146.146A.5.5 0 0 1 4.5 0h7a.5.5 0 0 1 .5.5c0 .68-.34 1.197-.756 1.564-.159.14-.32.251-.476.34l.3 2.521c.498.28 1.096.71 1.565 1.43C13.566 7.163 14 8.296 14 9.5a.5.5 0 0 1-.5.5h-4v4.5c0 .276-.224 1.5-.5 1.5s-.5-1.224-.5-1.5V10h-4a.5.5 0 0 1-.5-.5c0-1.204.434-2.337.865-3.06.47-.719 1.067-1.149 1.565-1.43l.298-2.52a3.4 3.4 0 0 1-.476-.34C2.34 1.697 2 1.18 2 .5a.5.5 0 0 1 .146-.354z"/>
+    </svg>
   )
 }
 
@@ -165,11 +180,12 @@ export function PinButton({ pinned, onToggle }) {
       type="button"
       onMouseDown={e => e.stopPropagation()}
       onClick={e => { e.stopPropagation(); e.preventDefault(); onToggle() }}
-      className={`text-base leading-none transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-1 rounded ${pinned ? 'text-amber-400' : 'text-gray-300 hover:text-amber-300'}`}
+      title={pinned ? 'Unpin concept' : 'Pin concept'}
+      className={`inline-flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-1 rounded ${pinned ? 'text-amber-400' : 'text-gray-300 hover:text-amber-300'}`}
       aria-label={pinned ? 'Unpin concept' : 'Pin concept'}
       aria-pressed={pinned}
     >
-      <span aria-hidden="true">★</span>
+      <PinIcon size={14} />
     </button>
   )
 }

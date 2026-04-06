@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useFilterSort } from '../hooks/useFilterSort'
 import FilterSortBar from '../components/FilterSortBar'
-import { StateSelector, PriorityBadge, ReviewCounter, PinButton } from '../components/StatusBadge'
+import { StateSelector, PriorityBadge, ReviewCounter, PinButton, PinIcon } from '../components/StatusBadge'
 import MarkdownEditor from '../components/MarkdownEditor'
 import ImageSection from '../components/ImageSection'
 
@@ -14,6 +14,7 @@ function isEditableTarget(e) {
 
 export default function FocusMode() {
   const concepts = useStore(s => s.concepts)
+  const allSubjects = useStore(s => s.subjects)
   const { filtered, filters, sort, setFilter, setSort, clearFilters, hasActiveFilters, subjects, topics, tags } =
     useFilterSort(concepts)
 
@@ -29,6 +30,7 @@ export default function FocusMode() {
   }, [filtered, currentId])
 
   const concept = filtered[currentIndex] || null
+  const conceptSubjects = concept ? allSubjects.filter(s => concept.subjectIds.includes(s.id)) : []
 
   function goTo(idx) {
     const c = filtered[idx]
@@ -100,7 +102,7 @@ export default function FocusMode() {
             <button
               onClick={() => goTo(currentIndex - 1)}
               disabled={currentIndex === 0}
-              className="flex items-center gap-1 text-sm text-gray-500 hover:text-indigo-600 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+              className="flex items-center gap-1 text-sm text-gray-500 hover:text-blue-600 disabled:opacity-30 disabled:pointer-events-none transition-colors"
             >
               ← Prev
             </button>
@@ -110,7 +112,7 @@ export default function FocusMode() {
             <button
               onClick={() => goTo(currentIndex + 1)}
               disabled={currentIndex === filtered.length - 1}
-              className="flex items-center gap-1 text-sm text-gray-500 hover:text-indigo-600 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+              className="flex items-center gap-1 text-sm text-gray-500 hover:text-blue-600 disabled:opacity-30 disabled:pointer-events-none transition-colors"
             >
               Next →
             </button>
@@ -119,19 +121,30 @@ export default function FocusMode() {
           {concept && (
             <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm">
               {/* Concept name + link */}
-              <div className="flex items-start justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900 leading-tight">
-                  {concept.pinned && <span className="text-amber-400 mr-2 text-lg">★</span>}
+              <div className="flex items-start justify-between mb-2">
+                <h2 className="flex-1 min-w-0 text-2xl font-bold text-gray-900 leading-tight break-words">
+                  {concept.pinned && <PinIcon size={14} className="inline text-amber-400 mr-2 -mt-0.5" />}
                   {concept.name}
                 </h2>
                 <Link
                   to={`/app/concepts/${concept.id}`}
-                  className="text-xs text-gray-400 hover:text-indigo-600 ml-4 flex-shrink-0 mt-1"
+                  className="text-xs text-gray-400 hover:text-blue-600 ml-4 flex-shrink-0 mt-1"
                   title="Open full concept page"
                 >
                   Open →
                 </Link>
               </div>
+
+              {/* Subject badges */}
+              {conceptSubjects.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-5">
+                  {conceptSubjects.map(s => (
+                    <span key={s.id} className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
+                      {s.name}
+                    </span>
+                  ))}
+                </div>
+              )}
 
               {/* Controls */}
               <div className="flex flex-wrap items-center gap-3 pb-5 border-b border-gray-100 mb-5">
@@ -225,7 +238,7 @@ function RevealButton({ label, hideLabel, visible, onToggle }) {
       onClick={onToggle}
       className={`text-sm px-4 py-1.5 rounded-lg border font-medium transition-colors ${
         visible
-          ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
+          ? 'bg-blue-50 border-blue-200 text-blue-700'
           : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-800'
       }`}
     >

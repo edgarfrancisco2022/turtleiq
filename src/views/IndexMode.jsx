@@ -1,9 +1,11 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { PinIcon } from '../components/StatusBadge'
+import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
+import { useApp } from '../context/AppContext'
 import { useFilterSort } from '../hooks/useFilterSort'
 import FilterSortBar from '../components/FilterSortBar'
-import { ReviewCounter } from '../components/StatusBadge'
+import { InlineEditor } from '../components/MarkdownEditor'
 
 const SCROLL_KEY  = 'scroll-index'
 const LAST_ID_KEY = 'index-last-id'
@@ -15,7 +17,56 @@ function isEditableTarget(e) {
     e.target.contentEditable === 'true'
 }
 
+/**
+ * Visual up/down navigation for a flex-wrap pill list.
+ *
+ * DOWN: find the nearest row below the current element, then among those
+ *       that share any horizontal overlap with it pick the leftmost.
+ * UP:   find the nearest row above the current element, then among those
+ *       that share any horizontal overlap with it pick the rightmost.
+ *
+ * Falls back to the leftmost/rightmost element of that row when nothing
+ * overlaps (e.g. the current pill is very narrow and hangs at the end of
+ * a long row).
+ */
+function getVisualNavIndex(direction, currentIdx, filtered) {
+  const els = filtered.map((c, i) => {
+    const el = document.getElementById(`idx-${c.id}`)
+    if (!el) return null
+    const r = el.getBoundingClientRect()
+    return { idx: i, left: r.left, right: r.right, top: r.top, bottom: r.bottom }
+  }).filter(Boolean)
+
+  const cur = els.find(e => e.idx === currentIdx)
+  if (!cur) return currentIdx
+
+  if (direction === 'down') {
+    // Elements whose top starts at or below the bottom of the current element
+    const below = els.filter(e => e.top >= cur.bottom - 2)
+    if (!below.length) return currentIdx
+    // Identify the immediate next row (smallest top)
+    const minTop = Math.min(...below.map(e => e.top))
+    const row = below.filter(e => e.top <= minTop + 4)
+    // Prefer candidates that overlap horizontally
+    const overlapping = row.filter(e => e.left < cur.right && e.right > cur.left)
+    const candidates = overlapping.length ? overlapping : row
+    return candidates.reduce((best, e) => e.left < best.left ? e : best).idx
+  } else {
+    // Elements whose bottom ends at or above the top of the current element
+    const above = els.filter(e => e.bottom <= cur.top + 2)
+    if (!above.length) return currentIdx
+    // Identify the immediate previous row (largest bottom)
+    const maxBottom = Math.max(...above.map(e => e.bottom))
+    const row = above.filter(e => e.bottom >= maxBottom - 4)
+    // Prefer candidates that overlap horizontally
+    const overlapping = row.filter(e => e.left < cur.right && e.right > cur.left)
+    const candidates = overlapping.length ? overlapping : row
+    return candidates.reduce((best, e) => e.right > best.right ? e : best).idx
+  }
+}
+
 export default function IndexMode() {
+  const { collapsed } = useApp()
   const concepts = useStore(s => s.concepts)
   const incrementReview = useStore(s => s.incrementReview)
   const decrementReview = useStore(s => s.decrementReview)
@@ -30,50 +81,77 @@ export default function IndexMode() {
     useFilterSort(concepts, { initialFilters: savedState?.filters, initialSort: savedState?.sort })
 
   const [focusedIdx, setFocusedIdx] = useState(0)
+  const [panelOpen, setPanelOpen] = useState(false)
   const navigate = useNavigate()
 
-  // suppressScroll: true while we're restoring scroll from a back-navigation
-  const suppressScroll = useRef(false)
+  const focusedConcept = filtered[focusedIdx] ?? null
 
-  // Scroll to top on mount; restore scroll/focus if returning from ConceptView
+  const suppressScroll = useRef(false)
+  // backRestoring: true while a back-navigation restore is in flight;
+  // prevents the sort-change effect (which StrictMode double-invokes) from
+  // resetting focusedIdx to 0 after we just set it to the restored index.
+  const backRestoring  = useRef(false)
+  // pendingFocusId: fallback for when filtered is empty on first render
+  const pendingFocusId = useRef(null)
+
+  // Restore scroll/focus when returning from ConceptView
   useEffect(() => {
     const el = getMain()
     if (el) el.scrollTop = 0
 
-    if (sessionStorage.getItem('cv-back')) {
-      sessionStorage.removeItem('cv-back')
-      sessionStorage.removeItem(STATE_KEY)
-      const savedScroll = sessionStorage.getItem(SCROLL_KEY)
-      sessionStorage.removeItem(SCROLL_KEY)
-      const lastId = sessionStorage.getItem(LAST_ID_KEY)
-      sessionStorage.removeItem(LAST_ID_KEY)
+    if (!sessionStorage.getItem('cv-back')) return
+    sessionStorage.removeItem('cv-back')
+    sessionStorage.removeItem(STATE_KEY)
+    const savedScroll = sessionStorage.getItem(SCROLL_KEY)
+    sessionStorage.removeItem(SCROLL_KEY)
+    const lastId = sessionStorage.getItem(LAST_ID_KEY)
+    sessionStorage.removeItem(LAST_ID_KEY)
 
-      const idx = lastId ? filtered.findIndex(c => c.id === lastId) : -1
-      if (idx >= 0) setFocusedIdx(idx)
+    if (!lastId) return
 
-      if (savedScroll) {
-        suppressScroll.current = true
-        const pos = parseInt(savedScroll, 10)
+    const idx = filtered.findIndex(c => c.id === lastId)
+    if (idx >= 0) {
+      backRestoring.current = true
+      setFocusedIdx(idx)
+    } else {
+      // Deferred: filtered may be empty if Zustand hydrates asynchronously
+      pendingFocusId.current = lastId
+    }
+
+    if (savedScroll) {
+      suppressScroll.current = true
+      const pos = parseInt(savedScroll, 10)
+      requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            const el2 = getMain()
-            if (el2) el2.scrollTop = pos
-            suppressScroll.current = false
-          })
+          const el2 = getMain()
+          if (el2) el2.scrollTop = pos
+          suppressScroll.current = false
         })
-      }
+      })
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Reset focus to first item when sort changes (skip on first render)
+  // Deferred focus restoration — only needed if filtered was empty on first render
+  useEffect(() => {
+    if (!pendingFocusId.current || !filtered.length) return
+    const idx = filtered.findIndex(c => c.id === pendingFocusId.current)
+    if (idx < 0) return
+    pendingFocusId.current = null
+    backRestoring.current = true
+    setFocusedIdx(idx)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered])
+
+  // Reset focus to first item when sort changes (skip on first render and back-navigation)
   const isFirstRender = useRef(true)
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return }
+    if (backRestoring.current) { backRestoring.current = false; return }
     setFocusedIdx(0)
   }, [sort])
 
-  // Scroll focused row into view (suppressed during back-navigation restoration)
+  // Scroll focused pill into view (suppressed during back-navigation restoration)
   useEffect(() => {
     if (suppressScroll.current) return
     const concept = filtered[focusedIdx]
@@ -92,12 +170,20 @@ export default function IndexMode() {
       const { filtered, focusedIdx, filters, sort } = stateRef.current
       if (!filtered.length) return
 
-      if (e.key === 'ArrowDown') {
+      if (e.key === 'ArrowRight') {
         e.preventDefault()
         setFocusedIdx(i => Math.min(i + 1, filtered.length - 1))
-      } else if (e.key === 'ArrowUp') {
+      } else if (e.key === 'ArrowLeft') {
         e.preventDefault()
         setFocusedIdx(i => Math.max(i - 1, 0))
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        const next = getVisualNavIndex('down', focusedIdx, filtered)
+        setFocusedIdx(next)
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        const next = getVisualNavIndex('up', focusedIdx, filtered)
+        setFocusedIdx(next)
       } else if (e.key === 'Enter') {
         e.preventDefault()
         const concept = filtered[focusedIdx]
@@ -108,6 +194,10 @@ export default function IndexMode() {
           sessionStorage.setItem(LAST_ID_KEY, concept.id)
           navigate(`/app/concepts/${concept.id}`)
         }
+      } else if (e.key === ' ') {
+        // Space toggles the MVK panel
+        e.preventDefault()
+        setPanelOpen(p => !p)
       } else if (e.key === '+' || e.key === '=') {
         const concept = filtered[focusedIdx]
         if (concept) incrementReview(concept.id)
@@ -120,33 +210,27 @@ export default function IndexMode() {
     return () => document.removeEventListener('keydown', onKey)
   }, [navigate, incrementReview, decrementReview])
 
-  function handleConceptClick(id) {
+  function saveNavState(id) {
     sessionStorage.setItem(STATE_KEY, JSON.stringify({ filters, sort }))
     const el = getMain()
     if (el) sessionStorage.setItem(SCROLL_KEY, String(el.scrollTop))
     sessionStorage.setItem(LAST_ID_KEY, id)
   }
 
-  const isAlpha = sort === 'alpha' || sort === 'alpha_desc'
-
-  const grouped = useMemo(() => {
-    if (!isAlpha) return [{ letter: null, concepts: filtered }]
-    const map = {}
-    filtered.forEach(c => {
-      const letter = c.name?.[0]?.toUpperCase() || '#'
-      if (!map[letter]) map[letter] = []
-      map[letter].push(c)
-    })
-    const entries = Object.entries(map).sort(([a], [b]) => a.localeCompare(b))
-    if (sort === 'alpha_desc') entries.reverse()
-    return entries.map(([letter, concepts]) => ({ letter, concepts }))
-  }, [filtered, isAlpha, sort])
-
-  // Flat list for focus index computation
-  const flatList = useMemo(() => grouped.flatMap(g => g.concepts), [grouped])
+  function handlePillClick(e, c, globalIdx) {
+    if (focusedIdx === globalIdx) {
+      // Already focused → navigate to concept view
+      saveNavState(c.id)
+      navigate(`/app/concepts/${c.id}`)
+    } else {
+      // Not focused → just focus, no navigation
+      e.preventDefault()
+      setFocusedIdx(globalIdx)
+    }
+  }
 
   return (
-    <div className="max-w-3xl mx-auto px-8 py-10">
+    <div className="max-w-5xl mx-auto px-8 py-10 pb-44">
       <div className="flex items-baseline justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Index</h1>
         <span className="text-sm text-gray-400">{concepts.length} total</span>
@@ -165,49 +249,69 @@ export default function IndexMode() {
           {concepts.length === 0 ? 'No concepts yet.' : 'No concepts match the current filters.'}
         </div>
       ) : (
-        <div>
-          {grouped.map(({ letter, concepts: group }) => (
-            <div key={letter ?? 'all'} className="mb-6">
-              {letter && (
-                <div className="flex items-center gap-3 mb-1">
-                  <span className="text-xs font-bold text-gray-400 uppercase tracking-widest w-5">{letter}</span>
-                  <div className="flex-1 h-px bg-gray-100" />
-                </div>
-              )}
-              {group.map(c => {
-                const globalIdx = flatList.findIndex(fc => fc.id === c.id)
-                const isFocused = globalIdx === focusedIdx
-                return (
-                  <div
-                    key={c.id}
-                    id={`idx-${c.id}`}
-                    className={`flex items-center group py-1 border-b border-gray-50 last:border-0 rounded transition-colors ${
-                      isFocused ? 'bg-indigo-50' : ''
-                    }`}
-                    onClick={() => setFocusedIdx(globalIdx)}
-                  >
-                    <div className="flex-1 min-w-0 py-0.5 pl-1">
-                      <Link
-                        to={`/app/concepts/${c.id}`}
-                        onClick={() => handleConceptClick(c.id)}
-                        className="text-sm text-gray-800 hover:text-indigo-700 transition-colors"
-                      >
-                        {c.pinned && <span className="text-amber-400 mr-1.5 text-[11px]">★</span>}
-                        {c.name}
-                      </Link>
-                    </div>
-                    <ReviewCounter
-                      count={c.reviewCount}
-                      onIncrement={() => incrementReview(c.id)}
-                      onDecrement={() => decrementReview(c.id)}
-                    />
-                  </div>
-                )
-              })}
-            </div>
-          ))}
+        <div className="flex flex-wrap gap-1.5">
+          {filtered.map((c, globalIdx) => {
+            const isFocused = globalIdx === focusedIdx
+            return (
+              <div
+                key={c.id}
+                id={`idx-${c.id}`}
+                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border select-none transition-colors max-w-full ${
+                  isFocused
+                    ? 'bg-blue-50 border-blue-300 cursor-pointer'
+                    : 'bg-gray-50 border-gray-200 hover:bg-blue-50 hover:border-blue-200 cursor-default'
+                }`}
+                onClick={e => handlePillClick(e, c, globalIdx)}
+              >
+                {c.pinned && <PinIcon size={9} className="inline text-amber-400 mr-0.5 -mt-px flex-shrink-0" />}
+                <span className={`font-medium transition-colors break-words min-w-0 ${isFocused ? 'text-blue-700' : 'text-gray-700'}`}>
+                  {c.name}
+                </span>
+                <span className="text-[10px] text-gray-400 tabular-nums flex-shrink-0">{c.reviewCount ?? 0}</span>
+              </div>
+            )
+          })}
         </div>
       )}
+
+      {/* MVK Drawer — always present, collapsed by default */}
+      <div className={`fixed bottom-0 right-0 z-20 bg-gray-900 transition-all duration-200 ${collapsed ? 'left-16' : 'left-60'}`}>
+        {panelOpen && (
+          <div className="bg-white border-t border-gray-200 shadow-[0_-4px_24px_rgba(0,0,0,0.07)]">
+            {focusedConcept && (
+              <InlineEditor
+                key={focusedConcept.id}
+                conceptId={focusedConcept.id}
+                field="mvkNotes"
+                content={focusedConcept.mvkNotes ?? ''}
+                placeholder="Write the smallest useful representation of this concept in your own words. Keep it concise, intuitive and easy to remember: a simple example, a few keywords, a short synthesis, a picture, or a mini diagram."
+              />
+            )}
+          </div>
+        )}
+        <button
+          onClick={() => setPanelOpen(p => !p)}
+          className="w-full flex items-center justify-between px-6 py-2.5 bg-gray-900 hover:bg-gray-800 transition-colors group outline-none focus:outline-none"
+        >
+          <div className="flex items-baseline gap-2">
+            <span className="text-[11px] font-semibold text-gray-300 uppercase tracking-widest">MVK</span>
+            <span className="text-[10px] text-gray-600 group-hover:text-gray-500 transition-colors hidden sm:inline">
+              Minimum Viable Knowledge
+            </span>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded border border-gray-700 text-[10px] text-gray-600 group-hover:text-gray-400 group-hover:border-gray-600 transition-colors font-mono leading-none select-none">
+              Space
+            </kbd>
+            <svg
+              className={`w-3.5 h-3.5 text-gray-500 group-hover:text-gray-300 transition-all duration-200 ${panelOpen ? 'rotate-180' : ''}`}
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+            </svg>
+          </div>
+        </button>
+      </div>
     </div>
   )
 }

@@ -45,7 +45,7 @@ export default function SignUpPage() {
                 type="text"
                 value={name}
                 onChange={e => setName(e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 required
                 autoFocus
                 autoComplete="name"
@@ -57,7 +57,7 @@ export default function SignUpPage() {
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 required
                 autoComplete="email"
               />
@@ -68,7 +68,7 @@ export default function SignUpPage() {
                 type="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 required
                 autoComplete="new-password"
               />
@@ -93,7 +93,7 @@ export default function SignUpPage() {
 
           <p className="mt-5 text-center text-xs text-gray-500">
             Already have an account?{' '}
-            <Link to="/sign-in" className="text-indigo-600 hover:underline font-medium">Sign in</Link>
+            <Link to="/sign-in" className="text-blue-600 hover:underline font-medium">Sign in</Link>
           </p>
         </div>
       </div>

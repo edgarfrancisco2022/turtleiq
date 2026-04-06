@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
+import { useApp } from '../context/AppContext'
 import { useFilterSort } from '../hooks/useFilterSort'
 import FilterSortBar from '../components/FilterSortBar'
-import { StateSelector, PriorityBadge, ReviewCounter, PinButton } from '../components/StatusBadge'
+import { StateSelector, PriorityBadge, ReviewCounter, PinButton, PinIcon } from '../components/StatusBadge'
 import { InlineEditor } from '../components/MarkdownEditor'
 
 const SCROLL_KEY  = 'scroll-list'
@@ -17,6 +18,7 @@ function isEditableTarget(e) {
 }
 
 export default function ListMode() {
+  const { collapsed } = useApp()
   const concepts = useStore(s => s.concepts)
 
   // Restore filter/sort state if returning from ConceptView (read before first render)
@@ -28,9 +30,11 @@ export default function ListMode() {
   const { filtered, filters, sort, setFilter, setSort, clearFilters, hasActiveFilters, subjects, topics, tags } =
     useFilterSort(concepts, { initialFilters: savedState?.filters, initialSort: savedState?.sort })
 
-  const [focusedIdx, setFocusedIdx]   = useState(0)
-  const [expandedIds, setExpandedIds] = useState(new Set())
+  const [focusedIdx, setFocusedIdx] = useState(0)
+  const [panelOpen, setPanelOpen]   = useState(false)
   const navigate = useNavigate()
+
+  const focusedConcept = filtered[focusedIdx] ?? null
 
   // suppressScroll: true while restoring scroll from back-navigation
   const suppressScroll = useRef(false)
@@ -88,12 +92,12 @@ export default function ListMode() {
 
   // Keyboard navigation
   const stateRef = useRef({})
-  stateRef.current = { filtered, focusedIdx, expandedIds, filters, sort }
+  stateRef.current = { filtered, focusedIdx, filters, sort }
 
   useEffect(() => {
     function onKey(e) {
       if (isEditableTarget(e)) return
-      const { filtered, focusedIdx, expandedIds, filters, sort } = stateRef.current
+      const { filtered, focusedIdx, filters, sort } = stateRef.current
       if (!filtered.length) return
 
       if (e.key === 'ArrowDown') {
@@ -114,15 +118,7 @@ export default function ListMode() {
         }
       } else if (e.key === ' ') {
         e.preventDefault()
-        const concept = filtered[focusedIdx]
-        if (concept) {
-          setExpandedIds(prev => {
-            const next = new Set(prev)
-            if (next.has(concept.id)) next.delete(concept.id)
-            else next.add(concept.id)
-            return next
-          })
-        }
+        setPanelOpen(p => !p)
       } else if (e.key === '+' || e.key === '=') {
         const concept = filtered[focusedIdx]
         if (concept) useStore.getState().incrementReview(concept.id)
@@ -143,7 +139,7 @@ export default function ListMode() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-8 py-10">
+    <div className="max-w-3xl mx-auto px-8 py-10 pb-44">
       <div className="flex items-baseline justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Library</h1>
         <span className="text-sm text-gray-400">{concepts.length} total</span>
@@ -162,32 +158,62 @@ export default function ListMode() {
           {concepts.length === 0 ? 'No concepts yet. Create your first concept to get started.' : 'No concepts match the current filters.'}
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {filtered.map((concept, idx) => (
             <ListConceptRow
               key={concept.id}
               concept={concept}
               focused={idx === focusedIdx}
-              expanded={expandedIds.has(concept.id)}
-              onToggleExpand={() => {
-                setExpandedIds(prev => {
-                  const next = new Set(prev)
-                  if (next.has(concept.id)) next.delete(concept.id)
-                  else next.add(concept.id)
-                  return next
-                })
-              }}
               onFocus={() => setFocusedIdx(idx)}
               onSaveState={() => saveState(concept.id)}
             />
           ))}
         </div>
       )}
+
+      {/* MVK Drawer — always present, collapsed by default */}
+      <div className={`fixed bottom-0 right-0 z-20 bg-gray-900 transition-all duration-200 ${collapsed ? 'left-16' : 'left-60'}`}>
+        {panelOpen && (
+          <div className="bg-white border-t border-gray-200 shadow-[0_-4px_24px_rgba(0,0,0,0.07)]">
+            {focusedConcept && (
+              <InlineEditor
+                key={focusedConcept.id}
+                conceptId={focusedConcept.id}
+                field="mvkNotes"
+                content={focusedConcept.mvkNotes ?? ''}
+                placeholder="Write the smallest useful representation of this concept in your own words. Keep it concise, intuitive and easy to remember: a simple example, a few keywords, a short synthesis, a picture, or a mini diagram."
+              />
+            )}
+          </div>
+        )}
+        <button
+          onClick={() => setPanelOpen(p => !p)}
+          className="w-full flex items-center justify-between px-6 py-2.5 bg-gray-900 hover:bg-gray-800 transition-colors group outline-none focus:outline-none"
+        >
+          <div className="flex items-baseline gap-2">
+            <span className="text-[11px] font-semibold text-gray-300 uppercase tracking-widest">MVK</span>
+            <span className="text-[10px] text-gray-600 group-hover:text-gray-500 transition-colors hidden sm:inline">
+              Minimum Viable Knowledge
+            </span>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded border border-gray-700 text-[10px] text-gray-600 group-hover:text-gray-400 group-hover:border-gray-600 transition-colors font-mono leading-none select-none">
+              Space
+            </kbd>
+            <svg
+              className={`w-3.5 h-3.5 text-gray-500 group-hover:text-gray-300 transition-all duration-200 ${panelOpen ? 'rotate-180' : ''}`}
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+            </svg>
+          </div>
+        </button>
+      </div>
     </div>
   )
 }
 
-function ListConceptRow({ concept, focused, expanded, onToggleExpand, onFocus, onSaveState }) {
+function ListConceptRow({ concept, focused, onFocus, onSaveState }) {
   const updateConceptField = useStore(s => s.updateConceptField)
   const incrementReview    = useStore(s => s.incrementReview)
   const decrementReview    = useStore(s => s.decrementReview)
@@ -197,25 +223,25 @@ function ListConceptRow({ concept, focused, expanded, onToggleExpand, onFocus, o
   return (
     <div
       id={`lib-${concept.id}`}
-      className={`bg-white border rounded-xl shadow-sm transition-all ${
-        focused ? 'border-indigo-300 ring-2 ring-indigo-200 ring-inset' : 'border-gray-100'
+      className={`border rounded-md transition-all ${
+        focused ? 'bg-gray-100/80 border-gray-300' : 'bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300'
       }`}
       onClick={onFocus}
     >
-      <div className="flex items-center gap-3 px-4 py-3">
-        <div className="flex-1 min-w-0">
+      <div className="flex items-center gap-3 px-4 py-2">
+        <div className="flex-1 min-w-0 break-words">
           <Link
             to={`/app/concepts/${concept.id}`}
             onClick={onSaveState}
-            className="font-medium text-gray-900 hover:text-indigo-700 transition-colors"
+            className="text-sm font-medium text-gray-800 hover:text-gray-600 transition-colors"
           >
-            {concept.pinned && <span className="text-amber-400 mr-1.5 text-xs">★</span>}
+            {concept.pinned && <PinIcon size={10} className="inline text-amber-400 mr-1.5 -mt-px" />}
             {concept.name}
           </Link>
           {conceptSubjects.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1">
               {conceptSubjects.map(s => (
-                <span key={s.id} className="text-xs bg-violet-50 text-violet-600 px-1.5 py-0.5 rounded-full">{s.name}</span>
+                <span key={s.id} className="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full">{s.name}</span>
               ))}
             </div>
           )}
@@ -230,27 +256,8 @@ function ListConceptRow({ concept, focused, expanded, onToggleExpand, onFocus, o
             onDecrement={() => decrementReview(concept.id)}
           />
           <PinButton pinned={concept.pinned} onToggle={() => updateConceptField(concept.id, 'pinned', !concept.pinned)} />
-          <button
-            onClick={onToggleExpand}
-            className="text-gray-400 hover:text-gray-700 text-xs w-5 text-center transition-colors"
-            title={expanded ? 'Collapse' : 'Expand MVK'}
-          >
-            {expanded ? '▲' : '▼'}
-          </button>
         </div>
       </div>
-
-      {expanded && (
-        <div className="border-t border-gray-100 bg-gray-50/60 px-5 py-3 rounded-b-xl">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">MVK</p>
-          <InlineEditor
-            conceptId={concept.id}
-            field="mvkNotes"
-            content={concept.mvkNotes ?? ''}
-            placeholder="Write the smallest useful representation of this concept in your own words. Keep it concise, intuitive and easy to remember: a simple example, a few keywords, a short synthesis, a picture, or a mini diagram."
-          />
-        </div>
-      )}
     </div>
   )
 }

@@ -75,7 +75,7 @@ export default function ConceptView() {
         </button>
         <button
           onClick={() => openEditForm(concept)}
-          className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-indigo-600 transition-colors"
+          className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-blue-600 transition-colors"
         >
           <span>✎</span> Edit
         </button>
@@ -89,7 +89,7 @@ export default function ConceptView() {
           {conceptSubjects.length > 0 && (
             <MetaRow label="Subjects">
               {conceptSubjects.map(s => (
-                <Chip key={s.id} cls="bg-violet-100 text-violet-700">{s.name}</Chip>
+                <Chip key={s.id} cls="bg-blue-100 text-blue-700">{s.name}</Chip>
               ))}
             </MetaRow>
           )}

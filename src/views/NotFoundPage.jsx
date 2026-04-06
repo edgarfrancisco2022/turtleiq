@@ -37,7 +37,7 @@ export default function NotFoundPage() {
           </Link>
           <Link
             to="/app"
-            className="inline-flex items-center justify-center gap-2 border border-gray-200 text-gray-700 text-sm font-medium px-5 py-2.5 rounded-xl hover:border-indigo-300 hover:text-indigo-700 transition-colors bg-white"
+            className="inline-flex items-center justify-center gap-2 border border-gray-200 text-gray-700 text-sm font-medium px-5 py-2.5 rounded-xl hover:border-blue-300 hover:text-blue-700 transition-colors bg-white"
           >
             Go to app
           </Link>

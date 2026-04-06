@@ -43,7 +43,7 @@ export default function SignInPage() {
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 required
                 autoFocus
                 autoComplete="email"
@@ -55,7 +55,7 @@ export default function SignInPage() {
                 type="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 required
                 autoComplete="current-password"
               />
@@ -79,7 +79,7 @@ export default function SignInPage() {
 
           <p className="mt-5 text-center text-xs text-gray-500">
             Don't have an account?{' '}
-            <Link to="/sign-up" className="text-indigo-600 hover:underline font-medium">Sign up</Link>
+            <Link to="/sign-up" className="text-blue-600 hover:underline font-medium">Sign up</Link>
           </p>
         </div>
       </div>

@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(find /c/Users/edgar/Desktop/learning-app-experimental -maxdepth 2 -name tailwind.config.* -o -name vite.config.* -o -name postcss.config.*)"
     ]
   }
 }

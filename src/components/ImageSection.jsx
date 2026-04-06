@@ -16,7 +16,7 @@ export default function ImageSection({ conceptId, images = [] }) {
     e.target.value = ''
 
     if (!ALLOWED_TYPES.has(file.type)) {
-      setError('Only PNG, JPG, JPEG, and GIF files are supported.')
+      setError('Only PNG, JPG, and JPEG files are supported.')
       return
     }
     setError('')
@@ -53,7 +53,7 @@ export default function ImageSection({ conceptId, images = [] }) {
         <button
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="text-xs font-medium text-indigo-600 hover:text-indigo-800 disabled:opacity-50 transition-colors"
+          className="text-xs font-medium text-blue-600 hover:text-blue-800 disabled:opacity-50 transition-colors"
         >
           {uploading ? 'Uploading…' : '+ Upload'}
         </button>
@@ -80,7 +80,7 @@ export default function ImageSection({ conceptId, images = [] }) {
               </code>
               <button
                 onClick={() => copyRef(imageId, fileName)}
-                className="text-xs text-indigo-500 hover:text-indigo-700 font-medium flex-shrink-0 transition-colors"
+                className="text-xs text-blue-500 hover:text-blue-700 font-medium flex-shrink-0 transition-colors"
                 title="Copy markdown reference"
               >
                 {copied === imageId ? 'Copied!' : 'Copy ref'}

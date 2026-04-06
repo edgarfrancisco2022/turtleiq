@@ -14,10 +14,7 @@ function openDB() {
 }
 
 async function compressImage(blob) {
-  // GIFs: skip compression (would lose animation)
-  if (blob.type === 'image/gif') return blob
-
-  const MAX_PX = 1200
+  const MAX_PX = 1000
   const bitmap = await createImageBitmap(blob)
   const { width, height } = bitmap
 
@@ -35,7 +32,7 @@ async function compressImage(blob) {
   canvas.getContext('2d').drawImage(bitmap, 0, 0, w, h)
   bitmap.close()
 
-  return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.82))
+  return new Promise(resolve => canvas.toBlob(resolve, 'image/webp', 0.80))
 }
 
 export async function saveImage(blob, fileName) {
@@ -73,5 +70,5 @@ export async function deleteImage(id) {
   })
 }
 
-export const ALLOWED_TYPES = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/gif'])
-export const ALLOWED_EXTENSIONS = '.png,.jpg,.jpeg,.gif'
+export const ALLOWED_TYPES = new Set(['image/png', 'image/jpeg', 'image/jpg'])
+export const ALLOWED_EXTENSIONS = '.png,.jpg,.jpeg'

@@ -56,7 +56,7 @@ export default function LandingPage() {
           <div className="flex flex-col gap-2.5 w-full max-w-xs">
             <Link
               to="/sign-in"
-              className="flex items-center justify-center gap-2 text-sm text-gray-600 hover:text-indigo-600 transition-colors py-2 border border-gray-200 rounded-xl hover:border-indigo-300"
+              className="flex items-center justify-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors py-2 border border-gray-200 rounded-xl hover:border-blue-300"
             >
               → Sign in
             </Link>

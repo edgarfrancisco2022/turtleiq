@@ -40,7 +40,7 @@ export default function NotesView() {
                   >
                     {formatPostDate(post.date)}
                   </time>
-                  <span className="text-xl font-bold text-gray-900 group-hover:text-indigo-700 transition-colors leading-snug">
+                  <span className="text-xl font-bold text-gray-900 group-hover:text-blue-700 transition-colors leading-snug">
                     {post.title}
                   </span>
                 </Link>

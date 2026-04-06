@@ -1,9 +1,11 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
+import { useApp } from '../context/AppContext'
 import FilterSortBar from '../components/FilterSortBar'
-import { StateSelector, PriorityBadge, ReviewCounter, PinButton } from '../components/StatusBadge'
+import { StateSelector, PriorityBadge, ReviewCounter, PinButton, PinIcon } from '../components/StatusBadge'
 import { InlineEditor } from '../components/MarkdownEditor'
+
 
 const SUBJECT_SORT_LABELS = { alpha: 'A → Z', date: 'Date added', custom: 'Custom' }
 const SCROLL_KEY  = sid => `scroll-subject-${sid}`
@@ -19,6 +21,7 @@ function isEditableTarget(e) {
 }
 
 export default function SubjectView() {
+  const { collapsed } = useApp()
   const { subjectId } = useParams()
   const navigate = useNavigate()
 
@@ -42,9 +45,8 @@ export default function SubjectView() {
   })
 
   const [filters, setFiltersState] = useState(() => savedState?.filters ?? EMPTY_FILTERS)
-  const [focusedIdx, setFocusedIdx]   = useState(0)
-  const [expandedIds, setExpandedIds] = useState(new Set())
-
+  const [focusedIdx, setFocusedIdx] = useState(0)
+  const [panelOpen, setPanelOpen]   = useState(false)
   function setFilter(key, value) { setFiltersState(f => ({ ...f, [key]: value })) }
   function clearFilters() { setFiltersState(EMPTY_FILTERS) }
   const hasActiveFilters = Boolean(
@@ -127,14 +129,16 @@ export default function SubjectView() {
     if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   }, [focusedIdx, displayed])
 
+  const focusedConcept = displayed[focusedIdx] ?? null
+
   // Keyboard navigation
   const stateRef = useRef({})
-  stateRef.current = { displayed, focusedIdx, expandedIds, filters }
+  stateRef.current = { displayed, focusedIdx, filters }
 
   useEffect(() => {
     function onKey(e) {
       if (isEditableTarget(e)) return
-      const { displayed, focusedIdx, expandedIds, filters } = stateRef.current
+      const { displayed, focusedIdx, filters } = stateRef.current
       if (!displayed.length) return
 
       if (e.key === 'ArrowDown') {
@@ -155,15 +159,7 @@ export default function SubjectView() {
         }
       } else if (e.key === ' ') {
         e.preventDefault()
-        const concept = displayed[focusedIdx]
-        if (concept) {
-          setExpandedIds(prev => {
-            const next = new Set(prev)
-            if (next.has(concept.id)) next.delete(concept.id)
-            else next.add(concept.id)
-            return next
-          })
-        }
+        setPanelOpen(p => !p)
       } else if (e.key === '+' || e.key === '=') {
         const concept = displayed[focusedIdx]
         if (concept) useStore.getState().incrementReview(concept.id)
@@ -205,7 +201,7 @@ export default function SubjectView() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-8 py-10">
+    <div className="max-w-3xl mx-auto px-8 py-10 pb-44">
       <div className="flex items-baseline justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">{subject.name}</h1>
         <span className="text-sm text-gray-400">{subjectConcepts.length} total</span>
@@ -234,21 +230,12 @@ export default function SubjectView() {
           {subjectConcepts.length === 0 ? 'No concepts in this subject yet.' : 'No concepts match the current filters.'}
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {displayed.map((concept, idx) => (
             <ConceptRow
               key={concept.id}
               concept={concept}
               focused={idx === focusedIdx}
-              expanded={expandedIds.has(concept.id)}
-              onToggleExpand={() => {
-                setExpandedIds(prev => {
-                  const next = new Set(prev)
-                  if (next.has(concept.id)) next.delete(concept.id)
-                  else next.add(concept.id)
-                  return next
-                })
-              }}
               onFocus={() => setFocusedIdx(idx)}
               isCustom={sortMode === 'custom' && !hasActiveFilters}
               canUp={canMoveUp(concept.id)}
@@ -264,28 +251,67 @@ export default function SubjectView() {
           ))}
         </div>
       )}
+
+      {/* MVK Drawer — always present, collapsed by default */}
+      <div className={`fixed bottom-0 right-0 z-20 bg-gray-900 transition-all duration-200 ${collapsed ? 'left-16' : 'left-60'}`}>
+        {panelOpen && (
+          <div className="bg-white border-t border-gray-200 shadow-[0_-4px_24px_rgba(0,0,0,0.07)]">
+            {focusedConcept && (
+              <InlineEditor
+                key={focusedConcept.id}
+                conceptId={focusedConcept.id}
+                field="mvkNotes"
+                content={focusedConcept.mvkNotes ?? ''}
+                placeholder="Write the smallest useful representation of this concept in your own words. Keep it concise, intuitive and easy to remember: a simple example, a few keywords, a short synthesis, a picture, or a mini diagram."
+              />
+            )}
+          </div>
+        )}
+        <button
+          onClick={() => setPanelOpen(p => !p)}
+          className="w-full flex items-center justify-between px-6 py-2.5 bg-gray-900 hover:bg-gray-800 transition-colors group outline-none focus:outline-none"
+        >
+          <div className="flex items-baseline gap-2">
+            <span className="text-[11px] font-semibold text-gray-300 uppercase tracking-widest">MVK</span>
+            <span className="text-[10px] text-gray-600 group-hover:text-gray-500 transition-colors hidden sm:inline">
+              Minimum Viable Knowledge
+            </span>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded border border-gray-700 text-[10px] text-gray-600 group-hover:text-gray-400 group-hover:border-gray-600 transition-colors font-mono leading-none select-none">
+              Space
+            </kbd>
+            <svg
+              className={`w-3.5 h-3.5 text-gray-500 group-hover:text-gray-300 transition-all duration-200 ${panelOpen ? 'rotate-180' : ''}`}
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+            </svg>
+          </div>
+        </button>
+      </div>
     </div>
   )
 }
 
-function ConceptRow({ concept, focused, expanded, onToggleExpand, onFocus, isCustom, canUp, canDown, onMoveUp, onMoveDown, onDelete, onSaveState, onUpdateField, onIncrementReview, onDecrementReview }) {
+function ConceptRow({ concept, focused, onFocus, isCustom, canUp, canDown, onMoveUp, onMoveDown, onDelete, onSaveState, onUpdateField, onIncrementReview, onDecrementReview }) {
   return (
     <div
       id={`sub-${concept.id}`}
-      className={`bg-white border rounded-xl shadow-sm transition-all ${
-        focused ? 'border-indigo-300 ring-2 ring-indigo-200 ring-inset' : 'border-gray-100'
+      className={`border rounded-md transition-all ${
+        focused ? 'bg-gray-100/80 border-gray-300' : 'bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300'
       }`}
       onClick={onFocus}
     >
-      <div className="flex items-center gap-2 px-4 py-3">
+      <div className="flex items-center gap-2 px-4 py-2">
         {/* Concept name */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 break-words">
           <Link
             to={`/app/concepts/${concept.id}`}
             onClick={onSaveState}
-            className="font-medium text-gray-900 hover:text-indigo-700 transition-colors"
+            className="text-sm font-medium text-gray-800 hover:text-gray-600 transition-colors"
           >
-            {concept.pinned && <span className="text-amber-400 mr-1.5 text-xs">★</span>}
+            {concept.pinned && <PinIcon size={10} className="inline text-amber-400 mr-1.5 -mt-px" />}
             {concept.name}
           </Link>
         </div>
@@ -296,14 +322,6 @@ function ConceptRow({ concept, focused, expanded, onToggleExpand, onFocus, isCus
           <PriorityBadge value={concept.priority} onChange={v => onUpdateField('priority', v)} />
           <ReviewCounter count={concept.reviewCount} onIncrement={onIncrementReview} onDecrement={onDecrementReview} />
           <PinButton pinned={concept.pinned} onToggle={() => onUpdateField('pinned', !concept.pinned)} />
-          <button
-            onClick={e => { e.preventDefault(); onToggleExpand() }}
-            className="text-gray-400 hover:text-gray-700 text-xs w-5 text-center transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-400 rounded"
-            aria-expanded={expanded}
-            aria-label={expanded ? `Collapse notes for ${concept.name}` : `Expand notes for ${concept.name}`}
-          >
-            <span aria-hidden="true">{expanded ? '▲' : '▼'}</span>
-          </button>
           <button
             onClick={onDelete}
             className="text-gray-300 hover:text-red-500 transition-colors text-sm leading-none focus:outline-none focus:ring-2 focus:ring-red-400 rounded"
@@ -318,7 +336,7 @@ function ConceptRow({ concept, focused, expanded, onToggleExpand, onFocus, isCus
               <button
                 onClick={onMoveUp}
                 disabled={!canUp}
-                className="text-gray-300 hover:text-gray-600 disabled:opacity-20 leading-tight text-xs px-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 rounded"
+                className="text-gray-300 hover:text-gray-600 disabled:opacity-20 leading-tight text-xs px-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400 rounded"
                 aria-label={`Move ${concept.name} up`}
                 aria-disabled={!canUp}
               >
@@ -327,7 +345,7 @@ function ConceptRow({ concept, focused, expanded, onToggleExpand, onFocus, isCus
               <button
                 onClick={onMoveDown}
                 disabled={!canDown}
-                className="text-gray-300 hover:text-gray-600 disabled:opacity-20 leading-tight text-xs px-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 rounded"
+                className="text-gray-300 hover:text-gray-600 disabled:opacity-20 leading-tight text-xs px-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400 rounded"
                 aria-label={`Move ${concept.name} down`}
                 aria-disabled={!canDown}
               >
@@ -337,18 +355,6 @@ function ConceptRow({ concept, focused, expanded, onToggleExpand, onFocus, isCus
           )}
         </div>
       </div>
-
-      {expanded && (
-        <div className="border-t border-gray-100 bg-gray-50/60 px-5 py-3 rounded-b-xl">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">MVK</p>
-          <InlineEditor
-            conceptId={concept.id}
-            field="mvkNotes"
-            content={concept.mvkNotes ?? ''}
-            placeholder="Write the smallest useful representation of this concept in your own words. Keep it concise, intuitive and easy to remember: a simple example, a few keywords, a short synthesis, a picture, or a mini diagram."
-          />
-        </div>
-      )}
     </div>
   )
 }
