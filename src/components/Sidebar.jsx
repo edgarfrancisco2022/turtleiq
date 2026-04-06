@@ -26,12 +26,6 @@ const IndexIcon = () => (
   </svg>
 )
 
-const SearchIcon = () => (
-  <svg viewBox="0 0 18 18" fill="none" className="w-4 h-4 flex-shrink-0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="7.5" cy="7.5" r="5" />
-    <line x1="11.5" y1="11.5" x2="16" y2="16" />
-  </svg>
-)
 
 const PlusIcon = () => (
   <svg viewBox="0 0 18 18" fill="none" className="w-4 h-4 flex-shrink-0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
@@ -51,6 +45,15 @@ const HamburgerIcon = () => (
     <line x1="2" y1="4.5" x2="16" y2="4.5" />
     <line x1="2" y1="9" x2="16" y2="9" />
     <line x1="2" y1="13.5" x2="16" y2="13.5" />
+  </svg>
+)
+
+const OverviewIcon = () => (
+  <svg viewBox="0 0 18 18" fill="none" className="w-4 h-4 flex-shrink-0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="2" width="6" height="6" rx="1" />
+    <rect x="10" y="2" width="6" height="6" rx="1" />
+    <rect x="2" y="10" width="6" height="6" rx="1" />
+    <rect x="10" y="10" width="6" height="6" rx="1" />
   </svg>
 )
 
@@ -154,7 +157,6 @@ export default function Sidebar({ onNewConcept, collapsed, onToggle, mobileOpen 
               >
                 <PlusIcon />
               </button>
-              <NavLink to="/app/search" className={navItem} title="Search"><SearchIcon /></NavLink>
             </>
           ) : (
             <>
@@ -165,7 +167,6 @@ export default function Sidebar({ onNewConcept, collapsed, onToggle, mobileOpen 
               >
                 <span className="text-base font-light" aria-hidden="true">+</span> New Concept
               </button>
-              <NavLink to="/app/search" className={navItem}><SearchIcon /> Search</NavLink>
             </>
           )}
         </div>
@@ -177,6 +178,7 @@ export default function Sidebar({ onNewConcept, collapsed, onToggle, mobileOpen 
               Explore
             </p>
           )}
+          <NavLink to="/app/overview" className={navItem} title="Overview"><OverviewIcon />{!collapsed && ' Overview'}</NavLink>
           <NavLink to="/app/library" className={navItem} title="Library"><LibraryIcon />{!collapsed && ' Library'}</NavLink>
           <NavLink to="/app/focus"   className={navItem} title="Focus"><FocusIcon />{!collapsed && ' Focus'}</NavLink>
           <NavLink to="/app/index"   className={navItem} title="Index"><IndexIcon />{!collapsed && ' Index'}</NavLink>

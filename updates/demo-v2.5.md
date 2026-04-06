@@ -76,3 +76,11 @@ The previous solution did not seem to be ideal in testing. The MVK panel is by d
 - My current idea for this redesign is to move this section into a bar at the top of the pages, similar to how we have an MVK panel at the bottom of the Library, Index, and Subject views, my idea was to have a Study Session panel at the top of all the views.
 - However this approach means that we would have less screen space for the actual views, and part of me feels that it might be unconventional.
 - I do not know anything about UI/UX design, please assume the role of a UI/UX design expert and provide feedback on the feasability of this idea, and what other potentially better options there could be.
+
+### Standardizing the design of the Search, Library, and Subject views
+
+- We want to update the design to be sleeker or less bulky.
+- Please consider the following feedback:
+- We need to improve the design of the search bar in the search view to be less bulky, in particular the vertical padding seems to be excesive for our needs. the border displayed in the focus state seems a bit too wide, the border radius of the search bar seems a bit too high, in general the search bar gives a sort of amateurish look, it should look more professional and sleek in general, while still looking modern.
+- The concept elements in the Search, Library and Subject views are also kind of bulky, and also have an awkard border when in focus state that seems a bit too wide, this border seems to have a 2 color style which makes it look like two different border lines, this styling should use only one color preferably a black tone to go along with the design of the app. These elements could also potentially have a narrower vertical padding, and potentially a smaller text size for the concept name.
+- Please assume the role of a UI/UX expert and improve on these ideas, I am just giving suggestions, please standardize these views so that they look more professional, and sleek while remaining modern looking, feel free to improve on these suggestions. Remeber the goal for this learning app is quick review of concepts, and not flashiness or cuteness.

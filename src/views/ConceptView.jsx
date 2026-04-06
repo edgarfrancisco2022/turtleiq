@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext'
 import MarkdownEditor from '../components/MarkdownEditor'
 import ImageSection from '../components/ImageSection'
 import { StateSelector, PriorityBadge, ReviewCounter, PinButton } from '../components/StatusBadge'
+import ShortcutsHintBar from '../components/ShortcutsHintBar'
 
 const getMain = () => document.getElementById('main-content')
 
@@ -84,7 +85,7 @@ export default function ConceptView() {
       <h1 className="text-3xl font-bold text-gray-900 mb-6">{concept.name}</h1>
 
       {/* Metadata */}
-      <div className="bg-gray-50 border border-gray-100 rounded-xl p-5 mb-8">
+      <div className="bg-gray-50 border border-gray-100 rounded-xl p-5 mb-3">
         <div className="space-y-2 mb-4">
           {conceptSubjects.length > 0 && (
             <MetaRow label="Subjects">
@@ -93,20 +94,22 @@ export default function ConceptView() {
               ))}
             </MetaRow>
           )}
-          {conceptTopics.length > 0 && (
-            <MetaRow label="Topics">
-              {conceptTopics.map(t => (
-                <Chip key={t.id} cls="bg-blue-50 text-blue-700">{t.name}</Chip>
-              ))}
-            </MetaRow>
-          )}
-          {conceptTags.length > 0 && (
-            <MetaRow label="Tags">
-              {conceptTags.map(t => (
-                <Chip key={t.id} cls="bg-gray-200 text-gray-600">#{t.name}</Chip>
-              ))}
-            </MetaRow>
-          )}
+          <MetaRow label="Topics">
+            {conceptTopics.length > 0
+              ? conceptTopics.map(t => (
+                  <Chip key={t.id} cls="bg-blue-50 text-blue-700">{t.name}</Chip>
+                ))
+              : <span className="text-xs text-gray-300 italic">None</span>
+            }
+          </MetaRow>
+          <MetaRow label="Tags">
+            {conceptTags.length > 0
+              ? conceptTags.map(t => (
+                  <Chip key={t.id} cls="bg-gray-200 text-gray-600">#{t.name}</Chip>
+                ))
+              : <span className="text-xs text-gray-300 italic">None</span>
+            }
+          </MetaRow>
         </div>
 
         <div className="pt-3 border-t border-gray-200 flex flex-wrap items-center gap-3">
@@ -139,6 +142,11 @@ export default function ConceptView() {
         </div>
       </div>
 
+      <ShortcutsHintBar items={[
+        { keyLabel: '⌫', actionLabel: 'Back' },
+        { keyLabel: '+ / −', actionLabel: 'Review Count' },
+      ]} className="mb-8" />
+
       {/* Content sections */}
       <Section title="References">
         <MarkdownEditor
@@ -158,7 +166,7 @@ export default function ConceptView() {
           conceptId={conceptId}
           field="mvkNotes"
           content={concept.mvkNotes ?? ''}
-          placeholder="Write the smallest useful representation of this concept in your own words. Keep it concise, intuitive and easy to remember: a simple example, a few keywords, a short synthesis, a picture, or a mini diagram."
+          placeholder="Write the smallest useful representation of this concept in your own words. Keep it tiny, intuitive and easy to remember: a simple example, a couple keywords, a micro synthesis, a mini diagram, an image..."
         />
       </Section>
 
@@ -167,7 +175,7 @@ export default function ConceptView() {
           conceptId={conceptId}
           field="markdownNotes"
           content={concept.markdownNotes ?? ''}
-          placeholder="Add detailed notes, explanations, or anything else about this concept..."
+          placeholder="Add meaningful notes, interesting intuitions, or hard-won insights you may want to revisit later..."
         />
       </Section>
     </div>

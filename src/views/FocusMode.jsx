@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useFilterSort } from '../hooks/useFilterSort'
 import FilterSortBar from '../components/FilterSortBar'
+import ShortcutsHintBar from '../components/ShortcutsHintBar'
 import { StateSelector, PriorityBadge, ReviewCounter, PinButton, PinIcon } from '../components/StatusBadge'
 import MarkdownEditor from '../components/MarkdownEditor'
 import ImageSection from '../components/ImageSection'
@@ -48,6 +49,7 @@ export default function FocusMode() {
   const decrementReview    = useStore(s => s.decrementReview)
 
   // Keyboard navigation: ←/→ for prev/next, +/- for review counter
+  const navigate = useNavigate()
   const stateRef = useRef({})
   stateRef.current = { filtered, currentIndex }
 
@@ -63,6 +65,10 @@ export default function FocusMode() {
       } else if (e.key === 'ArrowRight') {
         e.preventDefault()
         if (currentIndex < filtered.length - 1) goTo(currentIndex + 1)
+      } else if (e.key === 'Enter') {
+        e.preventDefault()
+        const c = filtered[currentIndex]
+        if (c) navigate(`/app/concepts/${c.id}`)
       } else if (e.key === '+' || e.key === '=') {
         const c = filtered[currentIndex]
         if (c) useStore.getState().incrementReview(c.id)
@@ -78,7 +84,7 @@ export default function FocusMode() {
 
   return (
     <div className="max-w-3xl mx-auto px-8 py-10">
-      <div className="flex items-baseline justify-between mb-6">
+      <div className="flex items-baseline justify-between mb-4">
         <h1 className="text-2xl font-bold text-gray-900">Focus</h1>
         <span className="text-sm text-gray-400">{filtered.length} total</span>
       </div>
@@ -90,6 +96,13 @@ export default function FocusMode() {
         subjects={subjects} topics={topics} tags={tags}
         resultCount={filtered.length}
       />
+
+      <ShortcutsHintBar items={[
+        { keyLabel: '← →', actionLabel: 'Navigate' },
+        { keyLabel: 'Enter', actionLabel: 'Open' },
+        { keyLabel: '⌫', actionLabel: 'Back' },
+        { keyLabel: '+ / −', actionLabel: 'Review Count' },
+      ]} />
 
       {filtered.length === 0 ? (
         <div className="text-center py-20 text-gray-400 text-sm">
@@ -189,7 +202,7 @@ export default function FocusMode() {
                     conceptId={concept.id}
                     field="mvkNotes"
                     content={concept.mvkNotes ?? ''}
-                    placeholder="Write the smallest useful representation of this concept in your own words. Keep it concise, intuitive and easy to remember: a simple example, a few keywords, a short synthesis, a picture, or a mini diagram."
+                    placeholder="Write the smallest useful representation of this concept in your own words. Keep it tiny, intuitive and easy to remember: a simple example, a couple keywords, a micro synthesis, a mini diagram, an image..."
                   />
                 </RevealSection>
               )}
@@ -201,7 +214,7 @@ export default function FocusMode() {
                     conceptId={concept.id}
                     field="markdownNotes"
                     content={concept.markdownNotes ?? ''}
-                    placeholder="Add detailed notes, explanations, or anything else about this concept..."
+                    placeholder="Add meaningful notes, interesting intuitions, or hard-won insights you may want to revisit later..."
                   />
                 </RevealSection>
               )}

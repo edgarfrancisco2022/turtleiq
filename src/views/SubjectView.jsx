@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useApp } from '../context/AppContext'
 import FilterSortBar from '../components/FilterSortBar'
+import ShortcutsHintBar from '../components/ShortcutsHintBar'
 import { StateSelector, PriorityBadge, ReviewCounter, PinButton, PinIcon } from '../components/StatusBadge'
 import { InlineEditor } from '../components/MarkdownEditor'
 
@@ -219,6 +220,14 @@ export default function SubjectView() {
         resultCount={displayed.length}
       />
 
+      <ShortcutsHintBar items={[
+        { keyLabel: '↑ ↓', actionLabel: 'Navigate' },
+        { keyLabel: 'Space', actionLabel: 'MVK' },
+        { keyLabel: 'Enter', actionLabel: 'Open' },
+        { keyLabel: '⌫', actionLabel: 'Back' },
+        { keyLabel: '+ / −', actionLabel: 'Review Count' },
+      ]} />
+
       {sortMode === 'custom' && hasActiveFilters && (
         <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg mb-3">
           Move controls are disabled while filters are active.
@@ -262,7 +271,7 @@ export default function SubjectView() {
                 conceptId={focusedConcept.id}
                 field="mvkNotes"
                 content={focusedConcept.mvkNotes ?? ''}
-                placeholder="Write the smallest useful representation of this concept in your own words. Keep it concise, intuitive and easy to remember: a simple example, a few keywords, a short synthesis, a picture, or a mini diagram."
+                placeholder="Write the smallest useful representation of this concept in your own words. Keep it tiny, intuitive and easy to remember: a simple example, a couple keywords, a micro synthesis, a mini diagram, an image..."
               />
             )}
           </div>

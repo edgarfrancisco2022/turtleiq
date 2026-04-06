@@ -15,10 +15,10 @@ import NotFoundPage   from './views/NotFoundPage'
 import HomeView     from './views/HomeView'
 import SubjectView  from './views/SubjectView'
 import ConceptView  from './views/ConceptView'
-import SearchView   from './views/SearchView'
 import ListMode     from './views/ListMode'
 import FocusMode    from './views/FocusMode'
 import IndexMode    from './views/IndexMode'
+import OverviewView from './views/OverviewView'
 
 // Redirects to /sign-in if not authenticated
 function RequireAuth({ children }) {
@@ -88,10 +88,10 @@ function AppShell() {
             <Route index                        element={<HomeView onNewConcept={openNewForm} />} />
             <Route path="subjects/:subjectId"   element={<SubjectView />} />
             <Route path="concepts/:conceptId"   element={<ConceptView />} />
-            <Route path="search"                element={<SearchView />} />
-            <Route path="library"               element={<ListMode />} />
+<Route path="library"               element={<ListMode />} />
             <Route path="focus"                 element={<FocusMode />} />
             <Route path="index"                 element={<IndexMode />} />
+            <Route path="overview"              element={<OverviewView />} />
           </Routes>
         </main>
 

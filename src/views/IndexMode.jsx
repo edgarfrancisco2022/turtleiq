@@ -5,6 +5,7 @@ import { useStore } from '../store/useStore'
 import { useApp } from '../context/AppContext'
 import { useFilterSort } from '../hooks/useFilterSort'
 import FilterSortBar from '../components/FilterSortBar'
+import ShortcutsHintBar from '../components/ShortcutsHintBar'
 import { InlineEditor } from '../components/MarkdownEditor'
 
 const SCROLL_KEY  = 'scroll-index'
@@ -231,7 +232,7 @@ export default function IndexMode() {
 
   return (
     <div className="max-w-5xl mx-auto px-8 py-10 pb-44">
-      <div className="flex items-baseline justify-between mb-6">
+      <div className="flex items-baseline justify-between mb-4">
         <h1 className="text-2xl font-bold text-gray-900">Index</h1>
         <span className="text-sm text-gray-400">{concepts.length} total</span>
       </div>
@@ -243,6 +244,14 @@ export default function IndexMode() {
         subjects={subjects} topics={topics} tags={tags}
         resultCount={filtered.length}
       />
+
+      <ShortcutsHintBar items={[
+        { keyLabel: '← → ↑ ↓', actionLabel: 'Navigate' },
+        { keyLabel: 'Space', actionLabel: 'MVK' },
+        { keyLabel: 'Enter', actionLabel: 'Open' },
+        { keyLabel: '⌫', actionLabel: 'Back' },
+        { keyLabel: '+ / −', actionLabel: 'Review Count' },
+      ]} />
 
       {filtered.length === 0 ? (
         <div className="text-center py-20 text-gray-400 text-sm">
@@ -284,7 +293,7 @@ export default function IndexMode() {
                 conceptId={focusedConcept.id}
                 field="mvkNotes"
                 content={focusedConcept.mvkNotes ?? ''}
-                placeholder="Write the smallest useful representation of this concept in your own words. Keep it concise, intuitive and easy to remember: a simple example, a few keywords, a short synthesis, a picture, or a mini diagram."
+                placeholder="Write the smallest useful representation of this concept in your own words. Keep it tiny, intuitive and easy to remember: a simple example, a couple keywords, a micro synthesis, a mini diagram, an image..."
               />
             )}
           </div>

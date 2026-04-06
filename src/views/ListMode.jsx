@@ -1,11 +1,18 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useApp } from '../context/AppContext'
 import { useFilterSort } from '../hooks/useFilterSort'
 import FilterSortBar from '../components/FilterSortBar'
+import ShortcutsHintBar from '../components/ShortcutsHintBar'
 import { StateSelector, PriorityBadge, ReviewCounter, PinButton, PinIcon } from '../components/StatusBadge'
 import { InlineEditor } from '../components/MarkdownEditor'
+
+function nameFiltered(concepts, query) {
+  if (!query) return concepts
+  const q = query.toLowerCase()
+  return concepts.filter(c => c.name.toLowerCase().includes(q))
+}
 
 const SCROLL_KEY  = 'scroll-list'
 const LAST_ID_KEY = 'list-last-id'
@@ -30,11 +37,16 @@ export default function ListMode() {
   const { filtered, filters, sort, setFilter, setSort, clearFilters, hasActiveFilters, subjects, topics, tags } =
     useFilterSort(concepts, { initialFilters: savedState?.filters, initialSort: savedState?.sort })
 
+  const results = useMemo(
+    () => nameFiltered(filtered, filters._nameQuery),
+    [filtered, filters._nameQuery]
+  )
+
   const [focusedIdx, setFocusedIdx] = useState(0)
   const [panelOpen, setPanelOpen]   = useState(false)
   const navigate = useNavigate()
 
-  const focusedConcept = filtered[focusedIdx] ?? null
+  const focusedConcept = results[focusedIdx] ?? null
 
   // suppressScroll: true while restoring scroll from back-navigation
   const suppressScroll = useRef(false)
@@ -55,7 +67,7 @@ export default function ListMode() {
       sessionStorage.removeItem(LAST_ID_KEY)
 
       backRestoring.current = true
-      const idx = lastId ? filtered.findIndex(c => c.id === lastId) : -1
+      const idx = lastId ? results.findIndex(c => c.id === lastId) : -1
       if (idx >= 0) setFocusedIdx(idx)
 
       if (saved) {
@@ -79,12 +91,12 @@ export default function ListMode() {
     if (isFirstRender.current) { isFirstRender.current = false; return }
     if (backRestoring.current) { backRestoring.current = false; return }
     setFocusedIdx(0)
-  }, [filtered.length, sort])
+  }, [results.length, sort])
 
   // Scroll focused row into view (suppressed during back-navigation restoration)
   useEffect(() => {
     if (suppressScroll.current) return
-    const concept = filtered[focusedIdx]
+    const concept = results[focusedIdx]
     if (!concept) return
     const el = document.getElementById(`lib-${concept.id}`)
     if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
@@ -92,23 +104,23 @@ export default function ListMode() {
 
   // Keyboard navigation
   const stateRef = useRef({})
-  stateRef.current = { filtered, focusedIdx, filters, sort }
+  stateRef.current = { results, focusedIdx, filters, sort }
 
   useEffect(() => {
     function onKey(e) {
       if (isEditableTarget(e)) return
-      const { filtered, focusedIdx, filters, sort } = stateRef.current
-      if (!filtered.length) return
+      const { results, focusedIdx, filters, sort } = stateRef.current
+      if (!results.length) return
 
       if (e.key === 'ArrowDown') {
         e.preventDefault()
-        setFocusedIdx(i => Math.min(i + 1, filtered.length - 1))
+        setFocusedIdx(i => Math.min(i + 1, results.length - 1))
       } else if (e.key === 'ArrowUp') {
         e.preventDefault()
         setFocusedIdx(i => Math.max(i - 1, 0))
       } else if (e.key === 'Enter') {
         e.preventDefault()
-        const concept = filtered[focusedIdx]
+        const concept = results[focusedIdx]
         if (concept) {
           sessionStorage.setItem(STATE_KEY, JSON.stringify({ filters, sort }))
           const el = getMain()
@@ -120,10 +132,10 @@ export default function ListMode() {
         e.preventDefault()
         setPanelOpen(p => !p)
       } else if (e.key === '+' || e.key === '=') {
-        const concept = filtered[focusedIdx]
+        const concept = results[focusedIdx]
         if (concept) useStore.getState().incrementReview(concept.id)
       } else if (e.key === '-') {
-        const concept = filtered[focusedIdx]
+        const concept = results[focusedIdx]
         if (concept) useStore.getState().decrementReview(concept.id)
       }
     }
@@ -140,9 +152,28 @@ export default function ListMode() {
 
   return (
     <div className="max-w-3xl mx-auto px-8 py-10 pb-44">
-      <div className="flex items-baseline justify-between mb-6">
+      <div className="flex items-baseline justify-between mb-4">
         <h1 className="text-2xl font-bold text-gray-900">Library</h1>
-        <span className="text-sm text-gray-400">{concepts.length} total</span>
+        <span className="text-sm text-gray-400">{results.length} total</span>
+      </div>
+
+      <div className="relative mb-4">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" aria-hidden="true">
+          <svg viewBox="0 0 18 18" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="7.5" cy="7.5" r="5" />
+            <line x1="11.5" y1="11.5" x2="16" y2="16" />
+          </svg>
+        </span>
+        <label htmlFor="library-search-input" className="sr-only">Search concept names</label>
+        <input
+          id="library-search-input"
+          type="search"
+          value={filters._nameQuery || ''}
+          onChange={e => setFilter('_nameQuery', e.target.value)}
+          placeholder="Search concept names..."
+          aria-label="Search concept names"
+          className="w-full border border-gray-200 rounded pl-9 pr-4 py-1 text-sm bg-white transition-colors hover:border-blue-200 hover:bg-blue-50/30 focus:outline-none focus:border-blue-400 focus:bg-blue-50/40"
+        />
       </div>
 
       <FilterSortBar
@@ -153,13 +184,21 @@ export default function ListMode() {
         resultCount={filtered.length}
       />
 
-      {filtered.length === 0 ? (
+      <ShortcutsHintBar items={[
+        { keyLabel: '↑ ↓', actionLabel: 'Navigate' },
+        { keyLabel: 'Space', actionLabel: 'MVK' },
+        { keyLabel: 'Enter', actionLabel: 'Open' },
+        { keyLabel: '⌫', actionLabel: 'Back' },
+        { keyLabel: '+ / −', actionLabel: 'Review Count' },
+      ]} />
+
+      {results.length === 0 ? (
         <div className="text-center py-16 text-gray-400 text-sm">
           {concepts.length === 0 ? 'No concepts yet. Create your first concept to get started.' : 'No concepts match the current filters.'}
         </div>
       ) : (
         <div className="space-y-1.5">
-          {filtered.map((concept, idx) => (
+          {results.map((concept, idx) => (
             <ListConceptRow
               key={concept.id}
               concept={concept}
@@ -181,7 +220,7 @@ export default function ListMode() {
                 conceptId={focusedConcept.id}
                 field="mvkNotes"
                 content={focusedConcept.mvkNotes ?? ''}
-                placeholder="Write the smallest useful representation of this concept in your own words. Keep it concise, intuitive and easy to remember: a simple example, a few keywords, a short synthesis, a picture, or a mini diagram."
+                placeholder="Write the smallest useful representation of this concept in your own words. Keep it tiny, intuitive and easy to remember: a simple example, a couple keywords, a micro synthesis, a mini diagram, an image..."
               />
             )}
           </div>

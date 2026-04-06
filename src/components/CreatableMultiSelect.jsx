@@ -13,7 +13,6 @@ export default function CreatableMultiSelect({
   const [isOpen, setIsOpen] = useState(false)
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 })
 
-  const containerRef = useRef(null)
   const triggerRef   = useRef(null)
   const dropdownRef  = useRef(null)
 
@@ -48,12 +47,12 @@ export default function CreatableMultiSelect({
     }
   }, [isOpen, updatePos])
 
-  // Close on outside click (container OR fixed dropdown)
+  // Close on outside click (trigger box OR fixed dropdown)
   useEffect(() => {
     function handleClickOutside(e) {
-      const inContainer = containerRef.current?.contains(e.target)
-      const inDropdown  = dropdownRef.current?.contains(e.target)
-      if (!inContainer && !inDropdown) setIsOpen(false)
+      const inTrigger  = triggerRef.current?.contains(e.target)
+      const inDropdown = dropdownRef.current?.contains(e.target)
+      if (!inTrigger && !inDropdown) setIsOpen(false)
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
@@ -62,7 +61,7 @@ export default function CreatableMultiSelect({
   function open() {
     updatePos()
     setIsOpen(true)
-    containerRef.current?.querySelector('input')?.focus()
+    triggerRef.current?.querySelector('input')?.focus()
   }
 
   function add(value) {
@@ -124,7 +123,7 @@ export default function CreatableMultiSelect({
     : null
 
   return (
-    <div ref={containerRef}>
+    <div>
       <label className="block text-xs font-medium text-gray-700 mb-1">
         {label}
         {required && <span className="text-red-500 ml-0.5">*</span>}
