@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useApp } from '../context/AppContext'
-import MarkdownEditor from '../components/MarkdownEditor'
+import MarkdownEditor, { MVK_EXAMPLE_HINT, MVK_PLACEHOLDER, MVK_EDIT_PLACEHOLDER } from '../components/MarkdownEditor'
 import ImageSection from '../components/ImageSection'
 import { StateSelector, PriorityBadge, ReviewCounter, PinButton } from '../components/StatusBadge'
 import ShortcutsHintBar from '../components/ShortcutsHintBar'
@@ -64,7 +64,7 @@ export default function ConceptView() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-8 py-10">
+    <div className="max-w-3xl mx-auto px-4 md:px-8 py-10">
       {/* Top bar */}
       <div className="flex items-center justify-between mb-6">
         <button
@@ -82,7 +82,7 @@ export default function ConceptView() {
         </button>
       </div>
 
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">{concept.name}</h1>
+      <h1 className="font-inter text-3xl font-bold text-gray-900 mb-6 tracking-tight">{concept.name}</h1>
 
       {/* Metadata */}
       <div className="bg-gray-50 border border-gray-100 rounded-xl p-5 mb-3">
@@ -148,27 +148,17 @@ export default function ConceptView() {
       ]} className="mb-8" />
 
       {/* Content sections */}
-      <Section title="References">
-        <MarkdownEditor
-          conceptId={conceptId}
-          field="referencesMarkdown"
-          content={concept.referencesMarkdown ?? ''}
-          placeholder="Add URLs, book references, page numbers, or any source material..."
-        />
-      </Section>
-
-      <Section title="Images">
-        <ImageSection conceptId={conceptId} images={concept.images ?? []} />
-      </Section>
-
-      <Section title="MVK — Minimum Viable Knowledge">
+      <section className="mb-8 bg-blue-50 border border-blue-100 rounded-xl p-4">
+        <h2 className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-3">MVK — Minimum Viable Knowledge</h2>
         <MarkdownEditor
           conceptId={conceptId}
           field="mvkNotes"
           content={concept.mvkNotes ?? ''}
-          placeholder="Write the smallest useful representation of this concept in your own words. Keep it tiny, intuitive and easy to remember: a simple example, a couple keywords, a micro synthesis, a mini diagram, an image..."
+          placeholder={MVK_PLACEHOLDER}
+          hint={MVK_EXAMPLE_HINT}
+          editPlaceholder={MVK_EDIT_PLACEHOLDER}
         />
-      </Section>
+      </section>
 
       <Section title="Notes">
         <MarkdownEditor
@@ -176,6 +166,19 @@ export default function ConceptView() {
           field="markdownNotes"
           content={concept.markdownNotes ?? ''}
           placeholder="Add meaningful notes, interesting intuitions, or hard-won insights you may want to revisit later..."
+        />
+      </Section>
+
+      <Section title="Images">
+        <ImageSection conceptId={conceptId} images={concept.images ?? []} />
+      </Section>
+
+      <Section title="References">
+        <MarkdownEditor
+          conceptId={conceptId}
+          field="referencesMarkdown"
+          content={concept.referencesMarkdown ?? ''}
+          placeholder="Add URLs, book references, page numbers, or any source material..."
         />
       </Section>
     </div>

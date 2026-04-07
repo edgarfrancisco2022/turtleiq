@@ -6,7 +6,7 @@ import { useFilterSort } from '../hooks/useFilterSort'
 import FilterSortBar from '../components/FilterSortBar'
 import ShortcutsHintBar from '../components/ShortcutsHintBar'
 import { StateSelector, PriorityBadge, ReviewCounter, PinButton, PinIcon } from '../components/StatusBadge'
-import { InlineEditor } from '../components/MarkdownEditor'
+import { InlineEditor, MVK_EXAMPLE_HINT, MVK_PLACEHOLDER, MVK_EDIT_PLACEHOLDER } from '../components/MarkdownEditor'
 
 function nameFiltered(concepts, query) {
   if (!query) return concepts
@@ -99,12 +99,13 @@ export default function ListMode() {
     const concept = results[focusedIdx]
     if (!concept) return
     const el = document.getElementById(`lib-${concept.id}`)
-    if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    if (el) el.scrollIntoView({ block: 'nearest', behavior: 'instant' })
   }, [focusedIdx, filtered])
 
   // Keyboard navigation
   const stateRef = useRef({})
   stateRef.current = { results, focusedIdx, filters, sort }
+  const lastNavTime = useRef(0)
 
   useEffect(() => {
     function onKey(e) {
@@ -114,9 +115,15 @@ export default function ListMode() {
 
       if (e.key === 'ArrowDown') {
         e.preventDefault()
+        const now = Date.now()
+        if (e.repeat && now - lastNavTime.current < 180) return
+        lastNavTime.current = now
         setFocusedIdx(i => Math.min(i + 1, results.length - 1))
       } else if (e.key === 'ArrowUp') {
         e.preventDefault()
+        const now = Date.now()
+        if (e.repeat && now - lastNavTime.current < 180) return
+        lastNavTime.current = now
         setFocusedIdx(i => Math.max(i - 1, 0))
       } else if (e.key === 'Enter') {
         e.preventDefault()
@@ -151,7 +158,7 @@ export default function ListMode() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-8 py-10 pb-44">
+    <div className="max-w-3xl mx-auto px-4 md:px-8 py-10 pb-44">
       <div className="flex items-baseline justify-between mb-4">
         <h1 className="text-2xl font-bold text-gray-900">Library</h1>
         <span className="text-sm text-gray-400">{results.length} total</span>
@@ -211,7 +218,7 @@ export default function ListMode() {
       )}
 
       {/* MVK Drawer — always present, collapsed by default */}
-      <div className={`fixed bottom-0 right-0 z-20 bg-gray-900 transition-all duration-200 ${collapsed ? 'left-16' : 'left-60'}`}>
+      <div className={`fixed bottom-0 right-0 z-20 bg-gray-900 transition-all duration-200 max-md:left-0 ${collapsed ? 'md:left-16' : 'md:left-60'}`}>
         {panelOpen && (
           <div className="bg-white border-t border-gray-200 shadow-[0_-4px_24px_rgba(0,0,0,0.07)]">
             {focusedConcept && (
@@ -220,7 +227,9 @@ export default function ListMode() {
                 conceptId={focusedConcept.id}
                 field="mvkNotes"
                 content={focusedConcept.mvkNotes ?? ''}
-                placeholder="Write the smallest useful representation of this concept in your own words. Keep it tiny, intuitive and easy to remember: a simple example, a couple keywords, a micro synthesis, a mini diagram, an image..."
+                placeholder={MVK_PLACEHOLDER}
+                hint={MVK_EXAMPLE_HINT}
+                editPlaceholder={MVK_EDIT_PLACEHOLDER}
               />
             )}
           </div>
@@ -267,12 +276,12 @@ function ListConceptRow({ concept, focused, onFocus, onSaveState }) {
       }`}
       onClick={onFocus}
     >
-      <div className="flex items-center gap-3 px-4 py-2">
+      <div className="flex flex-col gap-1.5 px-4 py-2 sm:flex-row sm:items-center sm:gap-3">
         <div className="flex-1 min-w-0 break-words">
           <Link
             to={`/app/concepts/${concept.id}`}
             onClick={onSaveState}
-            className="text-sm font-medium text-gray-800 hover:text-gray-600 transition-colors"
+            className="font-inter text-sm font-semibold text-gray-900 tracking-normal hover:text-blue-700 transition-colors"
           >
             {concept.pinned && <PinIcon size={10} className="inline text-amber-400 mr-1.5 -mt-px" />}
             {concept.name}
@@ -286,7 +295,7 @@ function ListConceptRow({ concept, focused, onFocus, onSaveState }) {
           )}
         </div>
 
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
           <StateSelector value={concept.state} onChange={v => updateConceptField(concept.id, 'state', v)} />
           <PriorityBadge value={concept.priority} onChange={v => updateConceptField(concept.id, 'priority', v)} />
           <ReviewCounter

@@ -69,7 +69,7 @@ export default function ConceptForm({ onClose, onDone, concept = null }) {
         </div>
 
         {/* Body — only scrolls on very small viewports; dropdowns escape via portal */}
-        <div className="px-5 py-4 overflow-y-auto">
+        <div className="px-5 py-4 overflow-y-auto overscroll-none">
           <form onSubmit={handleSubmit} className="space-y-3.5">
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">

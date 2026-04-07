@@ -98,7 +98,7 @@ export default function CreatableMultiSelect({
         <ul
           ref={dropdownRef}
           style={{ top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
-          className="fixed bg-white border border-gray-100 rounded-lg shadow-xl z-[9999] max-h-44 overflow-y-auto py-1"
+          className="fixed bg-white border border-gray-100 rounded-lg shadow-xl z-[9999] max-h-44 overflow-y-auto overscroll-none py-1"
         >
           {filtered.map(opt => (
             <li

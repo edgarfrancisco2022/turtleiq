@@ -5,7 +5,7 @@ import { useFilterSort } from '../hooks/useFilterSort'
 import FilterSortBar from '../components/FilterSortBar'
 import ShortcutsHintBar from '../components/ShortcutsHintBar'
 import { StateSelector, PriorityBadge, ReviewCounter, PinButton, PinIcon } from '../components/StatusBadge'
-import MarkdownEditor from '../components/MarkdownEditor'
+import MarkdownEditor, { MVK_EXAMPLE_HINT, MVK_PLACEHOLDER, MVK_EDIT_PLACEHOLDER } from '../components/MarkdownEditor'
 import ImageSection from '../components/ImageSection'
 
 function isEditableTarget(e) {
@@ -83,7 +83,7 @@ export default function FocusMode() {
   }, [])
 
   return (
-    <div className="max-w-3xl mx-auto px-8 py-10">
+    <div className="max-w-3xl mx-auto px-4 md:px-8 py-10">
       <div className="flex items-baseline justify-between mb-4">
         <h1 className="text-2xl font-bold text-gray-900">Focus</h1>
         <span className="text-sm text-gray-400">{filtered.length} total</span>
@@ -132,10 +132,10 @@ export default function FocusMode() {
           </div>
 
           {concept && (
-            <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm">
+            <div className="bg-white border border-gray-200 rounded-2xl p-4 md:p-8 shadow-sm">
               {/* Concept name + link */}
               <div className="flex items-start justify-between mb-2">
-                <h2 className="flex-1 min-w-0 text-2xl font-bold text-gray-900 leading-tight break-words">
+                <h2 className="font-inter flex-1 min-w-0 text-2xl font-bold text-gray-900 leading-tight tracking-tight break-words">
                   {concept.pinned && <PinIcon size={14} className="inline text-amber-400 mr-2 -mt-0.5" />}
                   {concept.name}
                 </h2>
@@ -202,7 +202,9 @@ export default function FocusMode() {
                     conceptId={concept.id}
                     field="mvkNotes"
                     content={concept.mvkNotes ?? ''}
-                    placeholder="Write the smallest useful representation of this concept in your own words. Keep it tiny, intuitive and easy to remember: a simple example, a couple keywords, a micro synthesis, a mini diagram, an image..."
+                    placeholder={MVK_PLACEHOLDER}
+                    hint={MVK_EXAMPLE_HINT}
+                    editPlaceholder={MVK_EDIT_PLACEHOLDER}
                   />
                 </RevealSection>
               )}

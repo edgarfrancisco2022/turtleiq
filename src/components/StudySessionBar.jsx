@@ -26,7 +26,7 @@ const TimerIcon = () => (
   </svg>
 )
 
-export default function StudySessionBar({ collapsed }) {
+export default function StudySessionBar({ collapsed, onMobileOpen }) {
   const subjects        = useStore(s => s.subjects)
   const studySessions   = useStore(s => s.studySessions)
   const addStudySession = useStore(s => s.addStudySession)
@@ -48,18 +48,38 @@ export default function StudySessionBar({ collapsed }) {
 
   return (
     <div
-      className={`fixed top-0 right-0 ${leftClass} h-11 z-30 bg-white border-b border-gray-200 flex items-center gap-3 px-4 transition-all duration-200`}
+      className={`fixed top-0 right-0 ${leftClass} h-11 z-30 bg-white border-b border-gray-200 flex items-center gap-2 px-3 transition-all duration-200 max-md:overflow-x-auto`}
       role="region"
       aria-label="Study session tracker"
     >
+      {/* Hamburger — mobile only, stays outside scroll zone */}
+      <button
+        className="md:hidden flex-shrink-0 p-1 rounded text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors"
+        onClick={onMobileOpen}
+        aria-label="Open navigation"
+      >
+        <svg viewBox="0 0 18 18" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+          <line x1="2" y1="4.5" x2="16" y2="4.5" />
+          <line x1="2" y1="9" x2="16" y2="9" />
+          <line x1="2" y1="13.5" x2="16" y2="13.5" />
+        </svg>
+      </button>
+
+      <div className="flex items-center gap-3 min-w-max">
+
+      {/* Label */}
+      <span className="flex items-center gap-1.5 text-gray-400 whitespace-nowrap select-none">
+        <TimerIcon />
+        <span className="text-xs font-medium text-gray-500 tracking-wide">Study Time</span>
+      </span>
+
+      <div className="w-px h-4 bg-gray-200 flex-shrink-0" aria-hidden="true" />
+
       {/* Total time */}
       <span
-        className="flex items-center gap-1.5 text-gray-400 whitespace-nowrap select-none"
+        className="text-xs font-mono font-semibold text-gray-700 whitespace-nowrap select-none tabular-nums"
         aria-label={`Total study time: ${formatTime(totalMinutes)}`}
-      >
-        <TimerIcon />
-        <span className="text-xs font-mono text-gray-600">{formatTime(totalMinutes)}</span>
-      </span>
+      >{formatTime(totalMinutes)}</span>
 
       <div className="w-px h-4 bg-gray-200 flex-shrink-0" aria-hidden="true" />
 
@@ -96,11 +116,12 @@ export default function StudySessionBar({ collapsed }) {
         ))}
       </select>
 
-      {/* Add button */}
+      {/* Log Time button */}
       <button
         onClick={handleAdd}
         disabled={!selectedTime}
         aria-disabled={!selectedTime}
+        title={!selectedTime ? 'Select a time increment first' : undefined}
         className={`inline-flex items-center justify-center gap-1 text-xs px-2.5 py-1 rounded-md font-medium border transition-colors focus:outline-none whitespace-nowrap select-none ${
           selectedTime
             ? 'border-gray-700 bg-gray-800 text-white hover:bg-gray-700 cursor-pointer'
@@ -108,8 +129,10 @@ export default function StudySessionBar({ collapsed }) {
         }`}
       >
         <span>+</span>
-        <span>Add Session</span>
+        <span>Log Time</span>
       </button>
+
+      </div>
     </div>
   )
 }

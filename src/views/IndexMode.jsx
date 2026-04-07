@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Fragment } from 'react'
 import { PinIcon } from '../components/StatusBadge'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
@@ -6,12 +6,46 @@ import { useApp } from '../context/AppContext'
 import { useFilterSort } from '../hooks/useFilterSort'
 import FilterSortBar from '../components/FilterSortBar'
 import ShortcutsHintBar from '../components/ShortcutsHintBar'
-import { InlineEditor } from '../components/MarkdownEditor'
+import { InlineEditor, MVK_EXAMPLE_HINT, MVK_PLACEHOLDER, MVK_EDIT_PLACEHOLDER } from '../components/MarkdownEditor'
 
 const SCROLL_KEY  = 'scroll-index'
 const LAST_ID_KEY = 'index-last-id'
 const STATE_KEY   = 'index-view-state'
 const getMain = () => document.getElementById('main-content')
+
+/**
+ * Groups a flat concept list (already sorted) into alphabetical sections.
+ * Non A–Z names go under '#' (numbers first, then symbols, lexicographic).
+ * Returns [{ letter, items: [{ concept, globalIdx }] }]
+ */
+function groupByLetter(concepts) {
+  const map = {}
+  concepts.forEach((c, globalIdx) => {
+    const first = (c.name?.trim()[0] ?? '').toUpperCase()
+    const key = /^[A-Z]$/.test(first) ? first : '#'
+    if (!map[key]) map[key] = []
+    map[key].push({ concept: c, globalIdx })
+  })
+
+  if (map['#']) {
+    map['#'].sort((a, b) => {
+      const na = a.concept.name, nb = b.concept.name
+      const aNum = /^\d/.test(na), bNum = /^\d/.test(nb)
+      if (aNum && bNum) return parseFloat(na) - parseFloat(nb)
+      if (aNum) return -1
+      if (bNum) return 1
+      return na.localeCompare(nb)
+    })
+  }
+
+  const keys = Object.keys(map).sort((a, b) => {
+    if (a === '#') return -1
+    if (b === '#') return 1
+    return a.localeCompare(b)
+  })
+
+  return keys.map(letter => ({ letter, items: map[letter] }))
+}
 
 function isEditableTarget(e) {
   return ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) ||
@@ -158,12 +192,13 @@ export default function IndexMode() {
     const concept = filtered[focusedIdx]
     if (!concept) return
     const el = document.getElementById(`idx-${concept.id}`)
-    if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    if (el) el.scrollIntoView({ block: 'nearest', behavior: 'instant' })
   }, [focusedIdx, filtered])
 
   // Keyboard navigation
   const stateRef = useRef({})
   stateRef.current = { filtered, focusedIdx, filters, sort }
+  const lastNavTime = useRef(0)
 
   useEffect(() => {
     function onKey(e) {
@@ -173,16 +208,28 @@ export default function IndexMode() {
 
       if (e.key === 'ArrowRight') {
         e.preventDefault()
+        const now = Date.now()
+        if (e.repeat && now - lastNavTime.current < 180) return
+        lastNavTime.current = now
         setFocusedIdx(i => Math.min(i + 1, filtered.length - 1))
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault()
+        const now = Date.now()
+        if (e.repeat && now - lastNavTime.current < 180) return
+        lastNavTime.current = now
         setFocusedIdx(i => Math.max(i - 1, 0))
       } else if (e.key === 'ArrowDown') {
         e.preventDefault()
+        const now = Date.now()
+        if (e.repeat && now - lastNavTime.current < 180) return
+        lastNavTime.current = now
         const next = getVisualNavIndex('down', focusedIdx, filtered)
         setFocusedIdx(next)
       } else if (e.key === 'ArrowUp') {
         e.preventDefault()
+        const now = Date.now()
+        if (e.repeat && now - lastNavTime.current < 180) return
+        lastNavTime.current = now
         const next = getVisualNavIndex('up', focusedIdx, filtered)
         setFocusedIdx(next)
       } else if (e.key === 'Enter') {
@@ -230,8 +277,10 @@ export default function IndexMode() {
     }
   }
 
+  const groups = groupByLetter(filtered)
+
   return (
-    <div className="max-w-5xl mx-auto px-8 py-10 pb-44">
+    <div className="max-w-5xl mx-auto px-4 md:px-8 py-10 pb-44">
       <div className="flex items-baseline justify-between mb-4">
         <h1 className="text-2xl font-bold text-gray-900">Index</h1>
         <span className="text-sm text-gray-400">{concepts.length} total</span>
@@ -258,33 +307,58 @@ export default function IndexMode() {
           {concepts.length === 0 ? 'No concepts yet.' : 'No concepts match the current filters.'}
         </div>
       ) : (
-        <div className="flex flex-wrap gap-1.5">
-          {filtered.map((c, globalIdx) => {
-            const isFocused = globalIdx === focusedIdx
-            return (
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-x-1 gap-y-0">
+          {groups.map(({ letter, items }, groupIdx) => (
+            <Fragment key={letter}>
+              {/* Letter anchor — spans full grid width */}
               <div
-                key={c.id}
-                id={`idx-${c.id}`}
-                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border select-none transition-colors max-w-full ${
-                  isFocused
-                    ? 'bg-blue-50 border-blue-300 cursor-pointer'
-                    : 'bg-gray-50 border-gray-200 hover:bg-blue-50 hover:border-blue-200 cursor-default'
-                }`}
-                onClick={e => handlePillClick(e, c, globalIdx)}
+                className={`col-span-full flex items-center gap-3 ${groupIdx === 0 ? 'mb-1' : 'mt-7 mb-1'}`}
               >
-                {c.pinned && <PinIcon size={9} className="inline text-amber-400 mr-0.5 -mt-px flex-shrink-0" />}
-                <span className={`font-medium transition-colors break-words min-w-0 ${isFocused ? 'text-blue-700' : 'text-gray-700'}`}>
-                  {c.name}
+                <span className="text-[11px] font-bold text-gray-400 tracking-widest uppercase w-4 text-center flex-shrink-0">
+                  {letter}
                 </span>
-                <span className="text-[10px] text-gray-400 tabular-nums flex-shrink-0">{c.reviewCount ?? 0}</span>
+                <div className="flex-1 border-t border-gray-100" />
               </div>
-            )
-          })}
+
+              {/* Concept entries */}
+              {items.map(({ concept: c, globalIdx }) => {
+                const isFocused = globalIdx === focusedIdx
+                return (
+                  <div
+                    key={c.id}
+                    id={`idx-${c.id}`}
+                    onClick={e => handlePillClick(e, c, globalIdx)}
+                    className={`group flex items-baseline gap-1.5 px-2 py-[5px] rounded select-none transition-colors ${
+                      isFocused
+                        ? 'bg-blue-50 cursor-pointer'
+                        : 'hover:bg-blue-50 cursor-default'
+                    }`}
+                  >
+                    {c.pinned && (
+                      <PinIcon size={8} className={`flex-shrink-0 self-center -mt-px ${isFocused ? 'text-amber-400' : 'text-amber-300'}`} />
+                    )}
+                    <span className={`text-sm leading-snug truncate min-w-0 transition-colors ${
+                      isFocused ? 'text-blue-700 font-medium' : 'text-gray-700'
+                    }`}>
+                      {c.name}
+                    </span>
+                    {(c.reviewCount !== undefined && c.reviewCount !== null) && (
+                      <span className={`text-[10px] tabular-nums flex-shrink-0 leading-none ml-2 transition-colors ${
+                        isFocused ? 'text-blue-400' : 'text-gray-400'
+                      }`}>
+                        {c.reviewCount}
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
+            </Fragment>
+          ))}
         </div>
       )}
 
       {/* MVK Drawer — always present, collapsed by default */}
-      <div className={`fixed bottom-0 right-0 z-20 bg-gray-900 transition-all duration-200 ${collapsed ? 'left-16' : 'left-60'}`}>
+      <div className={`fixed bottom-0 right-0 z-20 bg-gray-900 transition-all duration-200 max-md:left-0 ${collapsed ? 'md:left-16' : 'md:left-60'}`}>
         {panelOpen && (
           <div className="bg-white border-t border-gray-200 shadow-[0_-4px_24px_rgba(0,0,0,0.07)]">
             {focusedConcept && (
@@ -293,7 +367,9 @@ export default function IndexMode() {
                 conceptId={focusedConcept.id}
                 field="mvkNotes"
                 content={focusedConcept.mvkNotes ?? ''}
-                placeholder="Write the smallest useful representation of this concept in your own words. Keep it tiny, intuitive and easy to remember: a simple example, a couple keywords, a micro synthesis, a mini diagram, an image..."
+                placeholder={MVK_PLACEHOLDER}
+                hint={MVK_EXAMPLE_HINT}
+                editPlaceholder={MVK_EDIT_PLACEHOLDER}
               />
             )}
           </div>

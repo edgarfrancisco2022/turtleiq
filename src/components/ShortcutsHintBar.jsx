@@ -1,6 +1,6 @@
 export default function ShortcutsHintBar({ items, className = 'mb-4' }) {
   return (
-    <div className={`flex flex-wrap items-center gap-x-4 gap-y-1.5 ${className}`}>
+    <div className={`hidden md:flex flex-wrap items-center gap-x-4 gap-y-1.5 ${className}`}>
       <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Shortcuts</span>
       {items.map(({ keyLabel, actionLabel }) => (
         <span key={keyLabel} className="flex items-center gap-1.5">

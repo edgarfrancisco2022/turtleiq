@@ -2,8 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Suppress overscroll bounce/rubber-band effect globally */
+html, body {
+  overscroll-behavior: none;
+}
+
 /* Smooth scrollbar */
 * {
   scrollbar-width: thin;
   scrollbar-color: #4b5563 transparent;
+}
+
+/* Nested list styles inside prose/markdown */
+.prose ul ul {
+  list-style-type: circle;
+}
+.prose ul ul ul {
+  list-style-type: square;
 }

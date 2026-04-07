@@ -5,6 +5,7 @@ import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
 import { useStore } from '../store/useStore'
 import { getImageUrl } from '../store/imageStore'
+import MarkdownHelpPanel from './MarkdownHelpPanel'
 
 // Cache of imageId → objectURL to avoid redundant IndexedDB lookups
 const urlCache = new Map()
@@ -40,13 +41,28 @@ const MD_PLUGINS = {
 // Pass URLs through unchanged so tiq-img:// scheme reaches the custom img renderer
 const urlTransform = url => url
 
+export const MVK_PLACEHOLDER = `Write the smallest useful representation of this concept in your own words. Keep it tiny, intuitive and easy to remember: a simple example, a couple keywords, a micro synthesis, a mini diagram, an image...`
+
+export const MVK_EDIT_PLACEHOLDER = `Write the smallest useful representation of this concept in your own words. Keep it tiny, intuitive and easy to remember: a simple example, a couple keywords, a micro synthesis, a mini diagram, an image...
+
+Example — Concept Name: "Photosynthesis"  →  MVK: "sunlight + water + CO₂ = sugar + oxygen"`
+
+export const MVK_EXAMPLE_HINT = (
+  <p className="text-xs m-0 mt-2 not-italic">
+    <span className="text-gray-400">Example — Concept Name: "Photosynthesis" →</span>{' '}
+    <span className="text-gray-500 font-medium">MVK:</span>{' '}
+    <span className="text-gray-600 font-medium">"sunlight + water + CO₂ = sugar + oxygen"</span>
+  </p>
+)
+
 /**
  * Full markdown editor with Code/Preview toggle.
  */
-export default function MarkdownEditor({ conceptId, field, content = '', placeholder = '' }) {
+export default function MarkdownEditor({ conceptId, field, content = '', placeholder = '', hint = null, editPlaceholder }) {
   const [isEditing, setIsEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const [viewMode, setViewMode] = useState('code')
+  const [showHelp, setShowHelp] = useState(false)
   const saveContent = useStore(s => s.saveContent)
 
   function startEdit() {
@@ -91,7 +107,10 @@ export default function MarkdownEditor({ conceptId, field, content = '', placeho
           {content ? (
             <ReactMarkdown remarkPlugins={MD_PLUGINS.remark} rehypePlugins={MD_PLUGINS.rehype} components={mdComponents} urlTransform={urlTransform}>{content}</ReactMarkdown>
           ) : (
-            <p className="text-gray-400 italic text-sm m-0">{placeholder || 'No content yet. Click Edit to add.'}</p>
+            <div>
+              <p className="text-gray-400 italic text-sm m-0">{placeholder || 'No content yet. Click Edit to add.'}</p>
+              {hint}
+            </div>
           )}
         </div>
       </div>
@@ -116,21 +135,31 @@ export default function MarkdownEditor({ conceptId, field, content = '', placeho
             </button>
           ))}
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-3">
           <button
-            onClick={handleCancel}
-            className="text-xs text-gray-500 hover:text-gray-700 font-medium px-3 py-1 border border-gray-200 rounded-md bg-white"
+            onClick={() => setShowHelp(true)}
+            className="text-xs text-gray-400 hover:text-gray-600 font-medium transition-colors"
           >
-            Cancel
+            Markdown Help
           </button>
-          <button
-            onClick={handleSave}
-            className="text-xs bg-blue-600 text-white font-medium px-3 py-1 rounded-md hover:bg-blue-700"
-          >
-            Save
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleCancel}
+              className="text-xs text-gray-500 hover:text-gray-700 font-medium px-3 py-1 border border-gray-200 rounded-md bg-white"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              className="text-xs bg-blue-600 text-white font-medium px-3 py-1 rounded-md hover:bg-blue-700"
+            >
+              Save
+            </button>
+          </div>
         </div>
       </div>
+
+      {showHelp && <MarkdownHelpPanel onClose={() => setShowHelp(false)} />}
 
       {viewMode === 'code' ? (
         <textarea
@@ -139,7 +168,7 @@ export default function MarkdownEditor({ conceptId, field, content = '', placeho
           onKeyDown={handleKeyDown}
           className="w-full p-4 text-sm font-mono text-gray-800 focus:outline-none resize-none leading-relaxed"
           rows={14}
-          placeholder={placeholder}
+          placeholder={editPlaceholder ?? placeholder}
           autoFocus
         />
       ) : (
@@ -159,10 +188,11 @@ export default function MarkdownEditor({ conceptId, field, content = '', placeho
  * Compact inline editor for the MVK panel — matches MarkdownEditor visual style.
  * Toolbar lives outside the scrollable content area so it is always visible.
  */
-export function InlineEditor({ conceptId, field, content = '', placeholder = '' }) {
+export function InlineEditor({ conceptId, field, content = '', placeholder = '', hint = null, editPlaceholder }) {
   const [isEditing, setIsEditing] = useState(false)
   const [draft, setDraft]         = useState(content)
   const [viewMode, setViewMode]   = useState('code')
+  const [showHelp, setShowHelp]   = useState(false)
   const saveContent = useStore(s => s.saveContent)
 
   function startEdit() {
@@ -206,13 +236,16 @@ export function InlineEditor({ conceptId, field, content = '', placeholder = '' 
           </button>
         </div>
         {/* Scrollable content */}
-        <div className="px-4 py-3 max-h-32 overflow-y-auto">
+        <div className="px-4 py-3 max-h-32 overflow-y-auto overscroll-none">
           {content ? (
             <div className="prose prose-xs prose-neutral max-w-none text-sm">
               <ReactMarkdown remarkPlugins={MD_PLUGINS.remark} rehypePlugins={MD_PLUGINS.rehype} components={mdComponents} urlTransform={urlTransform}>{content}</ReactMarkdown>
             </div>
           ) : (
-            <p className="text-xs text-gray-400 italic m-0">{placeholder || 'No MVK notes. Click Edit to add.'}</p>
+            <div>
+              <p className="text-xs text-gray-400 italic m-0">{placeholder || 'No MVK notes. Click Edit to add.'}</p>
+              {hint}
+            </div>
           )}
         </div>
       </div>
@@ -238,34 +271,43 @@ export function InlineEditor({ conceptId, field, content = '', placeholder = '' 
             </button>
           ))}
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-3">
           <button
-            onClick={handleCancel}
-            className="text-xs text-gray-500 hover:text-gray-700 font-medium px-3 py-1 border border-gray-200 rounded-md bg-white"
+            onClick={() => setShowHelp(true)}
+            className="text-xs text-gray-400 hover:text-gray-600 font-medium transition-colors"
           >
-            Cancel
+            Markdown Help
           </button>
-          <button
-            onClick={handleSave}
-            className="text-xs bg-blue-600 text-white font-medium px-3 py-1 rounded-md hover:bg-blue-700"
-          >
-            Save
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleCancel}
+              className="text-xs text-gray-500 hover:text-gray-700 font-medium px-3 py-1 border border-gray-200 rounded-md bg-white"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              className="text-xs bg-blue-600 text-white font-medium px-3 py-1 rounded-md hover:bg-blue-700"
+            >
+              Save
+            </button>
+          </div>
         </div>
       </div>
+      {showHelp && <MarkdownHelpPanel onClose={() => setShowHelp(false)} />}
       {/* Scrollable edit area */}
       {viewMode === 'code' ? (
         <textarea
           value={draft}
           onChange={e => setDraft(e.target.value)}
           onKeyDown={handleKeyDown}
-          className="w-full px-4 py-3 text-sm font-mono text-gray-800 focus:outline-none resize-none leading-relaxed max-h-32 overflow-y-auto"
+          className="w-full px-4 py-3 text-sm font-mono text-gray-800 focus:outline-none resize-none leading-relaxed max-h-32 overflow-y-auto overscroll-none"
           rows={4}
-          placeholder={placeholder}
+          placeholder={editPlaceholder ?? placeholder}
           autoFocus
         />
       ) : (
-        <div className="px-4 py-3 max-h-32 overflow-y-auto prose prose-xs prose-neutral max-w-none text-sm">
+        <div className="px-4 py-3 max-h-32 overflow-y-auto overscroll-none prose prose-xs prose-neutral max-w-none text-sm">
           {draft ? (
             <ReactMarkdown remarkPlugins={MD_PLUGINS.remark} rehypePlugins={MD_PLUGINS.rehype} components={mdComponents} urlTransform={urlTransform}>{draft}</ReactMarkdown>
           ) : (

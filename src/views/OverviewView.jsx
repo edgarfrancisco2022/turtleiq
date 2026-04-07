@@ -49,8 +49,8 @@ function BreakdownList({ title, items, emptyText }) {
       ) : (
         <div className="space-y-2">
           {items.map((item, i) => (
-            <div key={i} className="flex items-baseline justify-between gap-3 text-sm">
-              <span className="text-gray-700 truncate">{item.name}</span>
+            <div key={i} className="flex items-start justify-between gap-3 text-sm">
+              <span className="text-gray-700 min-w-0 break-words">{item.name}</span>
               <span className="text-gray-400 flex-shrink-0 tabular-nums">{item.value}</span>
             </div>
           ))}
@@ -182,7 +182,7 @@ export default function OverviewView() {
     : null
 
   return (
-    <div className="max-w-4xl mx-auto px-8 py-10">
+    <div className="max-w-4xl mx-auto px-4 md:px-8 py-10">
 
       {/* Page header */}
       <div className="mb-10">
@@ -195,7 +195,7 @@ export default function OverviewView() {
         <SectionTitle>Study</SectionTitle>
 
         {/* Summary row */}
-        <div className="grid grid-cols-3 gap-3 mb-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
           <SummaryCard value={formatMinutes(study.totalMinutes)} label="Total Study Time" />
           <SummaryCard value={study.totalSessions} label="Study Sessions" />
           <SummaryCard value={study.totalReviews} label="Total Reviews" />
@@ -266,18 +266,18 @@ export default function OverviewView() {
                     key={c.id}
                     to={`/app/concepts/${c.id}`}
                     onClick={saveScroll}
-                    className="group flex items-baseline gap-3 text-sm -mx-2 px-2 py-1.5 rounded-md hover:bg-gray-100 transition-colors duration-150"
+                    className="group flex items-start gap-3 text-sm -mx-2 px-2 py-1.5 rounded-md hover:bg-gray-100 transition-colors duration-150 min-w-0"
                   >
                     {c.createdAt && (
-                      <span className="text-gray-400 flex-shrink-0 text-xs tabular-nums">
+                      <span className="text-gray-400 flex-shrink-0 text-xs tabular-nums pt-px">
                         {formatDate(c.createdAt)}
                       </span>
                     )}
-                    <span className="text-gray-700 group-hover:text-gray-900 transition-colors">
+                    <span className="text-gray-700 group-hover:text-gray-900 transition-colors min-w-0 break-words">
                       {c.name}
                     </span>
                     {conceptSubjects.length > 0 && (
-                      <span className="text-gray-400 text-xs">
+                      <span className="text-gray-400 text-xs flex-shrink-0">
                         {conceptSubjects.map(s => s.name).join(' · ')}
                       </span>
                     )}

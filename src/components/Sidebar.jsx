@@ -69,7 +69,7 @@ function getInitials(name = '', email = '') {
   return src.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?'
 }
 
-export default function Sidebar({ onNewConcept, collapsed, onToggle, mobileOpen }) {
+export default function Sidebar({ onNewConcept, collapsed, onToggle, mobileOpen, onMobileClose }) {
   const subjects      = useStore(s => s.subjects)
   const conceptCount  = useStore(s => s.concepts.length)
   const concepts      = useStore(s => s.concepts)
@@ -132,7 +132,7 @@ export default function Sidebar({ onNewConcept, collapsed, onToggle, mobileOpen 
               </div>
             </Link>
             <button
-              onClick={onToggle}
+              onClick={() => { onToggle(); onMobileClose?.() }}
               className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
               aria-label="Collapse sidebar"
               title="Collapse sidebar"
@@ -148,7 +148,7 @@ export default function Sidebar({ onNewConcept, collapsed, onToggle, mobileOpen 
         <div className={`pt-3 space-y-0.5 ${collapsed ? 'px-2' : 'px-3'}`}>
           {collapsed ? (
             <>
-              <NavLink to="/app" end className={navItem} title="Home"><HomeIcon /></NavLink>
+              <NavLink to="/app" end className={navItem} title="Home" onClick={onMobileClose}><HomeIcon /></NavLink>
               <button
                 onClick={onNewConcept}
                 className="w-full flex items-center justify-center p-2 rounded-lg text-gray-300 hover:bg-gray-700 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
@@ -171,22 +171,26 @@ export default function Sidebar({ onNewConcept, collapsed, onToggle, mobileOpen 
           )}
         </div>
 
-        {/* Explore */}
+        {/* Overview */}
+        <div className={`pt-1 space-y-0.5 ${collapsed ? 'px-2' : 'px-3'}`}>
+          <NavLink to="/app/overview" className={navItem} title="Overview" onClick={onMobileClose}><OverviewIcon />{!collapsed && ' Overview'}</NavLink>
+        </div>
+
+        {/* Review */}
         <div className={`pt-3 space-y-0.5 ${collapsed ? 'px-2' : 'px-3'}`}>
           {!collapsed && (
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-1" aria-hidden="true">
-              Explore
+              Review
             </p>
           )}
-          <NavLink to="/app/overview" className={navItem} title="Overview"><OverviewIcon />{!collapsed && ' Overview'}</NavLink>
-          <NavLink to="/app/library" className={navItem} title="Library"><LibraryIcon />{!collapsed && ' Library'}</NavLink>
-          <NavLink to="/app/focus"   className={navItem} title="Focus"><FocusIcon />{!collapsed && ' Focus'}</NavLink>
-          <NavLink to="/app/index"   className={navItem} title="Index"><IndexIcon />{!collapsed && ' Index'}</NavLink>
+          <NavLink to="/app/library" className={navItem} title="Library" onClick={onMobileClose}><LibraryIcon />{!collapsed && ' Library'}</NavLink>
+          <NavLink to="/app/focus"   className={navItem} title="Focus" onClick={onMobileClose}><FocusIcon />{!collapsed && ' Focus'}</NavLink>
+          <NavLink to="/app/index"   className={navItem} title="Index" onClick={onMobileClose}><IndexIcon />{!collapsed && ' Index'}</NavLink>
         </div>
 
         {/* Subjects — hidden when collapsed */}
         {!collapsed && (
-          <div className="flex-1 overflow-y-auto px-3 pt-3">
+          <div className="flex-1 overflow-y-auto overscroll-none px-3 pt-3">
             {sorted.length > 0 && (
               <>
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-1" aria-hidden="true">
@@ -196,6 +200,7 @@ export default function Sidebar({ onNewConcept, collapsed, onToggle, mobileOpen 
                   <NavLink
                     key={subject.id}
                     to={`/app/subjects/${subject.id}`}
+                    onClick={onMobileClose}
                     className={({ isActive }) =>
                       `flex items-center justify-between px-3 py-1.5 rounded-lg text-sm transition-colors ${
                         isActive
