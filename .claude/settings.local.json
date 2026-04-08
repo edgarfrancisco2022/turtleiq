@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app@latest tortugaiq-next --typescript --tailwind --app --src-dir --import-alias \"@/*\" --no-git --yes)",
+      "Bash(npm install:*)",
+      "Bash(npx drizzle-kit:*)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(npx tsc:*)",
+      "Bash(echo \"EXIT: $?\")",
+      "Read(//c/Users/edgar/.claude/plans/**)",
+      "Read(//c/Users/edgar/.claude/plans\" 2>/dev/**)",
+      "Bash(mkdir -p \"tortugaiq-next/src/app/\\(app\\)/app/subjects/[subjectId]\")",
+      "Bash(mkdir -p \"tortugaiq-next/src/app/\\(app\\)/app/concepts/[conceptId]\")",
+      "Bash(echo \"Exit: $?\")"
+    ]
+  }
+}

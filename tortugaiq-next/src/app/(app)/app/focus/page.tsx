@@ -1,61 +1,78 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
-import { Link, useSearchParams, useNavigate } from 'react-router-dom'
-import { useStore } from '../store/useStore'
-import { useFilterSort } from '../hooks/useFilterSort'
-import FilterSortBar from '../components/FilterSortBar'
-import ShortcutsHintBar from '../components/ShortcutsHintBar'
-import { StateSelector, PriorityBadge, ReviewCounter, PinButton, PinIcon } from '../components/StatusBadge'
-import MarkdownEditor, { MVK_EXAMPLE_HINT, MVK_PLACEHOLDER, MVK_EDIT_PLACEHOLDER } from '../components/MarkdownEditor'
-// DISABLED: Pro Plan feature — image hosting (re-enable when Pro Plan is active)
-// import ImageSection from '../components/ImageSection'
+'use client'
 
-function isEditableTarget(e) {
-  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) ||
-    e.target.contentEditable === 'true'
+import { useState, useMemo, useEffect, useRef, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
+import { useConcepts, useUpdateConceptField, useUpdateConceptContent, useIncrementReview, useDecrementReview } from '@/hooks/useConcepts'
+import { useSubjects, useTopics, useTags } from '@/hooks/useSubjects'
+import { useFilterSort } from '@/hooks/useFilterSort'
+import FilterSortBar from '@/components/ui/FilterSortBar'
+import ShortcutsHintBar from '@/components/ui/ShortcutsHintBar'
+import { StateSelector, PriorityBadge, ReviewCounter, PinButton, PinIcon } from '@/components/ui/StatusBadge'
+import MarkdownEditor, { MVK_PLACEHOLDER, MVK_EXAMPLE_HINT, MVK_EDIT_PLACEHOLDER } from '@/components/ui/MarkdownEditor'
+
+function isEditableTarget(e: KeyboardEvent) {
+  const t = e.target as HTMLElement
+  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) || t.contentEditable === 'true'
 }
 
-export default function FocusMode() {
-  const concepts = useStore(s => s.concepts)
-  const allSubjects = useStore(s => s.subjects)
-  const { filtered, filters, sort, setFilter, setSort, clearFilters, hasActiveFilters, subjects, topics, tags } =
-    useFilterSort(concepts)
+// useSearchParams() requires a Suspense boundary in Next.js App Router.
+// The default export wraps FocusModeInner in Suspense.
+export default function FocusModePage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-full"><p className="text-gray-400 text-sm">Loading…</p></div>}>
+      <FocusMode />
+    </Suspense>
+  )
+}
 
-  const [searchParams, setSearchParams] = useSearchParams()
+function FocusMode() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  const { data: allConcepts = [] } = useConcepts()
+  const { data: subjects = [] } = useSubjects()
+  const { data: topics = [] } = useTopics()
+  const { data: tags = [] } = useTags()
+  const updateFieldMut = useUpdateConceptField()
+  const updateContentMut = useUpdateConceptContent()
+  const incrementMut = useIncrementReview()
+  const decrementMut = useDecrementReview()
+
+  const { filtered, filters, sort, setFilter, setSort, clearFilters, hasActiveFilters } =
+    useFilterSort(allConcepts)
+
   // Only one section active at a time: null | 'mvk' | 'notes' | 'references'
-  const [activeSection, setActiveSection] = useState(null)
+  const [activeSection, setActiveSection] = useState<'mvk' | 'notes' | 'references' | null>(null)
 
   const currentId = searchParams.get('id')
   const currentIndex = useMemo(() => {
     if (!currentId) return 0
-    const idx = filtered.findIndex(c => c.id === currentId)
+    const idx = filtered.findIndex((c) => c.id === currentId)
     return idx >= 0 ? idx : 0
   }, [filtered, currentId])
 
-  const concept = filtered[currentIndex] || null
-  const conceptSubjects = concept ? allSubjects.filter(s => concept.subjectIds.includes(s.id)) : []
+  const concept = filtered[currentIndex] ?? null
+  const conceptSubjects = concept ? subjects.filter((s) => concept.subjectIds.includes(s.id)) : []
 
-  function goTo(idx) {
+  function goTo(idx: number) {
     const c = filtered[idx]
     if (!c) return
     setActiveSection(null)
-    setSearchParams({ id: c.id }, { replace: true })
+    const params = new URLSearchParams({ id: c.id })
+    router.replace(`/app/focus?${params.toString()}`)
   }
 
-  function toggleSection(section) {
-    setActiveSection(prev => prev === section ? null : section)
+  function toggleSection(section: 'mvk' | 'notes' | 'references') {
+    setActiveSection((prev) => (prev === section ? null : section))
   }
-
-  const updateConceptField = useStore(s => s.updateConceptField)
-  const incrementReview    = useStore(s => s.incrementReview)
-  const decrementReview    = useStore(s => s.decrementReview)
 
   // Keyboard navigation: ←/→ for prev/next, +/- for review counter
-  const navigate = useNavigate()
-  const stateRef = useRef({})
+  const stateRef = useRef({ filtered, currentIndex })
   stateRef.current = { filtered, currentIndex }
 
   useEffect(() => {
-    function onKey(e) {
+    function onKey(e: KeyboardEvent) {
       if (isEditableTarget(e)) return
       const { filtered, currentIndex } = stateRef.current
       if (!filtered.length) return
@@ -69,13 +86,13 @@ export default function FocusMode() {
       } else if (e.key === 'Enter') {
         e.preventDefault()
         const c = filtered[currentIndex]
-        if (c) navigate(`/app/concepts/${c.id}`)
+        if (c) router.push(`/app/concepts/${c.id}`)
       } else if (e.key === '+' || e.key === '=') {
         const c = filtered[currentIndex]
-        if (c) useStore.getState().incrementReview(c.id)
+        if (c) incrementMut.mutate(c.id)
       } else if (e.key === '-') {
         const c = filtered[currentIndex]
-        if (c) useStore.getState().decrementReview(c.id)
+        if (c) decrementMut.mutate(c.id)
       }
     }
     document.addEventListener('keydown', onKey)
@@ -91,23 +108,27 @@ export default function FocusMode() {
       </div>
 
       <FilterSortBar
-        filters={filters} sort={sort}
-        setFilter={setFilter} setSort={setSort}
-        clearFilters={clearFilters} hasActiveFilters={hasActiveFilters}
-        subjects={subjects} topics={topics} tags={tags}
+        filters={filters}
+        sort={sort}
+        setFilter={setFilter}
+        setSort={setSort}
+        clearFilters={clearFilters}
+        hasActiveFilters={hasActiveFilters}
+        subjects={subjects}
+        topics={topics}
+        tags={tags}
         resultCount={filtered.length}
       />
 
       <ShortcutsHintBar items={[
         { keyLabel: '← →', actionLabel: 'Navigate' },
         { keyLabel: 'Enter', actionLabel: 'Open' },
-        { keyLabel: '⌫', actionLabel: 'Back' },
         { keyLabel: '+ / −', actionLabel: 'Review Count' },
       ]} />
 
       {filtered.length === 0 ? (
         <div className="text-center py-20 text-gray-400 text-sm">
-          {concepts.length === 0 ? 'No concepts yet.' : 'No concepts match the current filters.'}
+          {allConcepts.length === 0 ? 'No concepts yet.' : 'No concepts match the current filters.'}
         </div>
       ) : (
         <>
@@ -141,7 +162,7 @@ export default function FocusMode() {
                   {concept.name}
                 </h2>
                 <Link
-                  to={`/app/concepts/${concept.id}`}
+                  href={`/app/concepts/${concept.id}`}
                   className="text-xs text-gray-400 hover:text-blue-600 ml-4 flex-shrink-0 mt-1"
                   title="Open full concept page"
                 >
@@ -152,7 +173,7 @@ export default function FocusMode() {
               {/* Subject badges */}
               {conceptSubjects.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mb-5">
-                  {conceptSubjects.map(s => (
+                  {conceptSubjects.map((s) => (
                     <span key={s.id} className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
                       {s.name}
                     </span>
@@ -162,10 +183,23 @@ export default function FocusMode() {
 
               {/* Controls */}
               <div className="flex flex-wrap items-center gap-3 pb-5 border-b border-gray-100 mb-5">
-                <StateSelector value={concept.state} onChange={v => updateConceptField(concept.id, 'state', v)} />
-                <PriorityBadge value={concept.priority} onChange={v => updateConceptField(concept.id, 'priority', v)} />
-                <ReviewCounter count={concept.reviewCount} onIncrement={() => incrementReview(concept.id)} onDecrement={() => decrementReview(concept.id)} />
-                <PinButton pinned={concept.pinned} onToggle={() => updateConceptField(concept.id, 'pinned', !concept.pinned)} />
+                <StateSelector
+                  value={concept.state}
+                  onChange={(v) => updateFieldMut.mutate({ id: concept.id, field: 'state', value: v })}
+                />
+                <PriorityBadge
+                  value={concept.priority}
+                  onChange={(v) => updateFieldMut.mutate({ id: concept.id, field: 'priority', value: v })}
+                />
+                <ReviewCounter
+                  count={concept.reviewCount}
+                  onIncrement={() => incrementMut.mutate(concept.id)}
+                  onDecrement={() => decrementMut.mutate(concept.id)}
+                />
+                <PinButton
+                  pinned={concept.pinned}
+                  onToggle={() => updateFieldMut.mutate({ id: concept.id, field: 'pinned', value: !concept.pinned })}
+                />
               </div>
 
               {/* Reveal buttons */}
@@ -182,14 +216,6 @@ export default function FocusMode() {
                   visible={activeSection === 'notes'}
                   onToggle={() => toggleSection('notes')}
                 />
-                {/* DISABLED: Pro Plan feature — image hosting (re-enable when Pro Plan is active)
-                <RevealButton
-                  label="Show Images"
-                  hideLabel="Hide Images"
-                  visible={activeSection === 'images'}
-                  onToggle={() => toggleSection('images')}
-                />
-                */}
                 <RevealButton
                   label="Show References"
                   hideLabel="Hide References"
@@ -198,51 +224,37 @@ export default function FocusMode() {
                 />
               </div>
 
-              {/* MVK */}
               {activeSection === 'mvk' && (
                 <RevealSection title="MVK">
                   <MarkdownEditor
-                    conceptId={concept.id}
-                    field="mvkNotes"
                     content={concept.mvkNotes ?? ''}
                     placeholder={MVK_PLACEHOLDER}
                     hint={MVK_EXAMPLE_HINT}
                     editPlaceholder={MVK_EDIT_PLACEHOLDER}
+                    onSave={(value) => updateContentMut.mutate({ id: concept.id, field: 'mvkNotes', value })}
                   />
                 </RevealSection>
               )}
 
-              {/* Notes */}
               {activeSection === 'notes' && (
                 <RevealSection title="Notes">
                   <MarkdownEditor
-                    conceptId={concept.id}
-                    field="markdownNotes"
                     content={concept.markdownNotes ?? ''}
                     placeholder="Add meaningful notes, interesting intuitions, or hard-won insights you may want to revisit later..."
+                    onSave={(value) => updateContentMut.mutate({ id: concept.id, field: 'markdownNotes', value })}
                   />
                 </RevealSection>
               )}
 
-              {/* References */}
               {activeSection === 'references' && (
                 <RevealSection title="References">
                   <MarkdownEditor
-                    conceptId={concept.id}
-                    field="referencesMarkdown"
                     content={concept.referencesMarkdown ?? ''}
                     placeholder="Add URLs, book references, page numbers, or any source material..."
+                    onSave={(value) => updateContentMut.mutate({ id: concept.id, field: 'referencesMarkdown', value })}
                   />
                 </RevealSection>
               )}
-
-              {/* DISABLED: Pro Plan feature — image hosting (re-enable when Pro Plan is active)
-              {activeSection === 'images' && (
-                <RevealSection title="Images">
-                  <ImageSection conceptId={concept.id} images={concept.images ?? []} />
-                </RevealSection>
-              )}
-              */}
             </div>
           )}
         </>
@@ -251,7 +263,17 @@ export default function FocusMode() {
   )
 }
 
-function RevealButton({ label, hideLabel, visible, onToggle }) {
+function RevealButton({
+  label,
+  hideLabel,
+  visible,
+  onToggle,
+}: {
+  label: string
+  hideLabel: string
+  visible: boolean
+  onToggle: () => void
+}) {
   return (
     <button
       onClick={onToggle}
@@ -266,7 +288,7 @@ function RevealButton({ label, hideLabel, visible, onToggle }) {
   )
 }
 
-function RevealSection({ title, children }) {
+function RevealSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mt-5 pt-5 border-t border-gray-100">
       <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{title}</p>

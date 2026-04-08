@@ -1,0 +1,90 @@
+import { z } from 'zod'
+
+// ---------------------------------------------------------------------------
+// Auth
+// ---------------------------------------------------------------------------
+
+export const signUpSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  name: z.string().min(1, 'Name is required').max(100),
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .max(128),
+})
+
+export type SignUpInput = z.infer<typeof signUpSchema>
+
+export const requestPasswordResetSchema = z.object({
+  email: z.string().email('Invalid email address'),
+})
+
+export type RequestPasswordResetInput = z.infer<typeof requestPasswordResetSchema>
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, 'Token is required'),
+  newPassword: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .max(128),
+})
+
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>
+
+// ---------------------------------------------------------------------------
+// Concepts
+// ---------------------------------------------------------------------------
+
+const nameList = z
+  .array(z.string().trim().min(1).max(200))
+  .default([])
+
+export const conceptInputSchema = z.object({
+  name: z.string().trim().min(1, 'Concept name is required').max(200),
+  subjectNames: nameList,
+  topicNames: nameList,
+  tagNames: nameList,
+  mvkNotes: z.string().default(''),
+  markdownNotes: z.string().default(''),
+  referencesMarkdown: z.string().default(''),
+  state: z
+    .enum(['NEW', 'LEARNING', 'REVIEWING', 'MEMORIZING', 'STORED'])
+    .default('NEW'),
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).default('MEDIUM'),
+  pinned: z.boolean().default(false),
+})
+
+export type ConceptInputValidated = z.infer<typeof conceptInputSchema>
+
+export const updateConceptFieldSchema = z.object({
+  id: z.string().min(1),
+  field: z.enum(['state', 'priority', 'pinned']),
+  value: z.union([
+    z.enum(['NEW', 'LEARNING', 'REVIEWING', 'MEMORIZING', 'STORED']),
+    z.enum(['LOW', 'MEDIUM', 'HIGH']),
+    z.boolean(),
+  ]),
+})
+
+export const updateConceptContentSchema = z.object({
+  id: z.string().min(1),
+  field: z.enum(['mvkNotes', 'markdownNotes', 'referencesMarkdown']),
+  value: z.string(),
+})
+
+// ---------------------------------------------------------------------------
+// Study sessions
+// ---------------------------------------------------------------------------
+
+export const addStudySessionSchema = z.object({
+  minutes: z.number().int().positive().max(1440),
+  subjectId: z.string().nullable().optional(),
+})
+
+export type AddStudySessionInput = z.infer<typeof addStudySessionSchema>
+
+// ---------------------------------------------------------------------------
+// Subjects
+// ---------------------------------------------------------------------------
+
+export const sortModeSchema = z.enum(['alpha', 'date', 'custom'])
