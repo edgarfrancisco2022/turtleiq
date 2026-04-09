@@ -1,6 +1,11 @@
 'use server'
 
+import { signIn } from '@/auth'
 import { signUpWithCredentials } from '@/actions/auth'
+
+export async function signUpWithGoogle() {
+  await signIn('google', { redirectTo: '/app' })
+}
 
 export async function signUpAction(
   _prevState: { error: string; success?: boolean },
