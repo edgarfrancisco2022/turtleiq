@@ -1,11 +1,25 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { signIn } from 'next-auth/react'
 import Link from 'next/link'
 import { signUpAction } from './actions'
 
 export default function SignUpPage() {
+  const router = useRouter()
   const [state, formAction, pending] = useActionState(signUpAction, { error: '' })
+
+  useEffect(() => {
+    if (!state.success || !state.email || !state.password) return
+
+    signIn('credentials', {
+      email: state.email,
+      password: state.password,
+      callbackUrl: '/app',
+      redirect: true,
+    })
+  }, [state.success, state.email, state.password])
 
   return (
     <div className="w-full max-w-sm">
@@ -73,10 +87,10 @@ export default function SignUpPage() {
           </div>
           <button
             type="submit"
-            disabled={pending}
+            disabled={pending || !!state.success}
             className="w-full bg-gray-900 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-gray-700 transition-colors mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {pending ? 'Creating account…' : 'Create account'}
+            {pending || state.success ? 'Creating account…' : 'Create account'}
           </button>
         </form>
 

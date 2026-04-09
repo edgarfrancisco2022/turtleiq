@@ -1,15 +1,43 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useState } from 'react'
+import { signIn } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import Link from 'next/link'
-import { credentialsSignIn, signInWithGoogle } from './actions'
+import { signInWithGoogle } from './actions'
 
 function SignInContent() {
-  const [state, formAction, pending] = useActionState(credentialsSignIn, { error: '' })
+  const [error, setError] = useState('')
+  const [pending, setPending] = useState(false)
   const searchParams = useSearchParams()
   const resetSuccess = searchParams.get('reset') === 'success'
+  const callbackUrl = searchParams.get('callbackUrl') ?? '/app'
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setError('')
+    setPending(true)
+
+    const form = e.currentTarget
+    const email = (form.elements.namedItem('email') as HTMLInputElement).value
+    const password = (form.elements.namedItem('password') as HTMLInputElement).value
+
+    const result = await signIn('credentials', {
+      email,
+      password,
+      callbackUrl,
+      redirect: false,
+    })
+
+    setPending(false)
+
+    if (result?.error) {
+      setError('Invalid email or password.')
+    } else if (result?.url) {
+      window.location.href = result.url
+    }
+  }
 
   return (
     <div className="w-full max-w-sm">
@@ -54,7 +82,6 @@ function SignInContent() {
               Sign in with Google
             </button>
           </form>
-
         </div>
 
         <div className="relative mb-5">
@@ -72,13 +99,13 @@ function SignInContent() {
           </div>
         )}
 
-        {state.error && (
+        {error && (
           <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-4">
-            {state.error}
+            {error}
           </div>
         )}
 
-        <form action={formAction} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="text-xs font-medium text-gray-600 mb-1 block" htmlFor="email">
               Email

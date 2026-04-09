@@ -1,13 +1,11 @@
 'use server'
 
-import { AuthError } from 'next-auth'
-import { signIn } from '@/auth'
 import { signUpWithCredentials } from '@/actions/auth'
 
 export async function signUpAction(
-  _prevState: { error: string },
+  _prevState: { error: string; success?: boolean },
   formData: FormData
-): Promise<{ error: string }> {
+): Promise<{ error: string; success?: boolean; email?: string; password?: string }> {
   const email = formData.get('email') as string
   const password = formData.get('password') as string
 
@@ -21,13 +19,9 @@ export async function signUpAction(
     return { error: result.error }
   }
 
-  try {
-    await signIn('credentials', { email, password, redirectTo: '/app' })
-  } catch (error) {
-    if (error instanceof AuthError) {
-      return { error: 'Account created but sign-in failed. Please sign in manually.' }
-    }
-    throw error // re-throw NEXT_REDIRECT
-  }
-  return { error: '' }
+  // Return credentials so the client can sign in — server-side signIn() inside
+  // a Server Action fails to set cookies reliably in production (the Set-Cookie
+  // header gets lost in the redirect chain). Client-side signIn() from
+  // next-auth/react is the reliable path.
+  return { error: '', success: true, email, password }
 }

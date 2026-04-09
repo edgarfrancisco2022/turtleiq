@@ -14,7 +14,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     sessionsTable: sessions,
     verificationTokensTable: verificationTokens,
   }),
-  session: { strategy: 'database' },
+  session: { strategy: 'jwt' },
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -29,7 +29,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (!credentials?.email || !credentials?.password) return null
 
         const user = await db.query.users.findFirst({
-          where: eq(users.email, credentials.email as string),
+          where: eq(users.email, (credentials.email as string).toLowerCase()),
         })
 
         if (!user?.passwordHash) return null
@@ -50,9 +50,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     error: '/sign-in',
   },
   callbacks: {
-    session({ session, user }) {
-      if (session.user) {
-        session.user.id = user.id
+    jwt({ token, user }) {
+      if (user?.id) {
+        token.sub = user.id
+      }
+      return token
+    },
+    session({ session, token }) {
+      if (session.user && token.sub) {
+        session.user.id = token.sub
       }
       return session
     },

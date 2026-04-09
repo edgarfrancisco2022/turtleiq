@@ -84,7 +84,7 @@ export async function requestPasswordReset(input: {
     expiresAt,
   })
 
-  const resetUrl = `${process.env.NEXTAUTH_URL}/forgot-password/reset?token=${token}`
+  const resetUrl = `${process.env.AUTH_URL}/forgot-password/reset?token=${token}`
 
   const resend = new Resend(process.env.RESEND_API_KEY)
   await resend.emails.send({
