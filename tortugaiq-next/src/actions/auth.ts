@@ -49,13 +49,6 @@ export async function signUpWithCredentials(input: {
     passwordHash,
   })
 
-  // Sign in immediately after sign up
-  await signIn('credentials', {
-    email: email.toLowerCase(),
-    password,
-    redirect: false,
-  })
-
   return {}
 }
 

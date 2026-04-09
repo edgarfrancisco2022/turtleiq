@@ -5,10 +5,15 @@ import { DrizzleAdapter } from '@auth/drizzle-adapter'
 import { eq } from 'drizzle-orm'
 import bcrypt from 'bcryptjs'
 import { db } from '@/db'
-import { users } from '@/db/schema'
+import { users, accounts, sessions, verificationTokens } from '@/db/schema'
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  adapter: DrizzleAdapter(db),
+  adapter: DrizzleAdapter(db, {
+    usersTable: users,
+    accountsTable: accounts,
+    sessionsTable: sessions,
+    verificationTokensTable: verificationTokens,
+  }),
   session: { strategy: 'database' },
   providers: [
     Google({
