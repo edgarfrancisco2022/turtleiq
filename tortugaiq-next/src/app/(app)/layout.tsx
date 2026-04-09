@@ -16,7 +16,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   return (
     <SidebarStateContext.Provider value={{ collapsed }}>
       <Sidebar
-        onNewConcept={openConceptForm}
+        onNewConcept={() => openConceptForm()}
         collapsed={collapsed}
         onToggle={() => setCollapsed((c) => !c)}
         mobileOpen={mobileOpen}
