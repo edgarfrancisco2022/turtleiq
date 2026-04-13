@@ -10,11 +10,7 @@ export const SORT_LABELS: Record<string, string> = {
   date_old: 'Oldest first',
   reviews_high: 'Most reviewed',
   reviews_low: 'Least reviewed',
-  priority_high: 'Priority high',
-  pinned_first: 'Pinned first',
 }
-
-const PRIORITY_ORDER: Record<ConceptPriority, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 }
 
 export function sortConcepts(concepts: Concept[], sort: string): Concept[] {
   const arr = [...concepts]
@@ -35,18 +31,6 @@ export function sortConcepts(concepts: Concept[], sort: string): Concept[] {
       return arr.sort((a, b) => (b.reviewCount ?? 0) - (a.reviewCount ?? 0))
     case 'reviews_low':
       return arr.sort((a, b) => (a.reviewCount ?? 0) - (b.reviewCount ?? 0))
-    case 'priority_high':
-      return arr.sort(
-        (a, b) =>
-          (PRIORITY_ORDER[a.priority ?? 'MEDIUM'] ?? 1) -
-          (PRIORITY_ORDER[b.priority ?? 'MEDIUM'] ?? 1)
-      )
-    case 'pinned_first':
-      return arr.sort((a, b) => {
-        if (a.pinned && !b.pinned) return -1
-        if (!a.pinned && b.pinned) return 1
-        return a.name.localeCompare(b.name)
-      })
     default:
       return arr
   }

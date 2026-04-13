@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { useConcepts, useUpdateConceptField, useUpdateConceptContent, useIncrementReview, useDecrementReview } from '@/hooks/useConcepts'
+import { useConcepts, useUpdateConceptField, useUpdateConceptContent, useIncrementReview, useDecrementReview, useDeleteConcept } from '@/hooks/useConcepts'
 import { useSubjects, useTopics, useTags } from '@/hooks/useSubjects'
 import { useSidebarState } from '@/components/providers/SidebarStateProvider'
 import { useFilterSort } from '@/hooks/useFilterSort'
@@ -12,6 +12,7 @@ import ShortcutsHintBar from '@/components/ui/ShortcutsHintBar'
 import { StateSelector, PriorityBadge, ReviewCounter, PinButton, PinIcon } from '@/components/ui/StatusBadge'
 import InlineEditor from '@/components/ui/InlineEditor'
 import { MVK_PLACEHOLDER, MVK_EXAMPLE_HINT, MVK_EDIT_PLACEHOLDER } from '@/components/ui/MarkdownEditor'
+import DeleteConceptDialog from '@/components/ui/DeleteConceptDialog'
 import type { FilterState } from '@/hooks/useFilterSort'
 import type { Concept, ConceptState, ConceptPriority } from '@/lib/types'
 
@@ -43,6 +44,7 @@ export default function ListMode() {
   const updateContentMut = useUpdateConceptContent()
   const incrementMut = useIncrementReview()
   const decrementMut = useDecrementReview()
+  const deleteMut = useDeleteConcept()
 
   // Restore filter/sort state if returning from ConceptView (read before first render)
   const [savedState] = useState<{ filters: FilterState; sort: string } | null>(() => {
@@ -62,6 +64,7 @@ export default function ListMode() {
 
   const [focusedIdx, setFocusedIdx] = useState(0)
   const [panelOpen, setPanelOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<Concept | null>(null)
   const focusedConcept = results[focusedIdx] ?? null
 
   const suppressScroll = useRef(false)
@@ -172,6 +175,11 @@ export default function ListMode() {
     sessionStorage.setItem(LAST_ID_KEY, conceptId)
   }
 
+  function handleDelete(e: React.MouseEvent, concept: Concept) {
+    e.preventDefault()
+    setDeleteTarget(concept)
+  }
+
   return (
     <div className="max-w-3xl mx-auto px-4 md:px-8 py-10 pb-44">
       <div className="flex items-baseline justify-between mb-4">
@@ -232,6 +240,7 @@ export default function ListMode() {
               subjects={subjects}
               onFocus={() => setFocusedIdx(idx)}
               onSaveState={() => saveState(concept.id)}
+              onDelete={(e) => handleDelete(e, concept)}
               onUpdateField={(field, value) => updateFieldMut.mutate({ id: concept.id, field: field as 'state' | 'priority' | 'pinned', value: value as ConceptState | ConceptPriority | boolean })}
               onIncrementReview={() => incrementMut.mutate(concept.id)}
               onDecrementReview={() => decrementMut.mutate(concept.id)}
@@ -279,6 +288,14 @@ export default function ListMode() {
           </div>
         </button>
       </div>
+
+      {deleteTarget && (
+        <DeleteConceptDialog
+          conceptName={deleteTarget.name}
+          onConfirm={() => { deleteMut.mutate(deleteTarget.id); setDeleteTarget(null) }}
+          onCancel={() => setDeleteTarget(null)}
+        />
+      )}
     </div>
   )
 }
@@ -289,12 +306,13 @@ interface ListConceptRowProps {
   subjects: { id: string; name: string }[]
   onFocus: () => void
   onSaveState: () => void
+  onDelete: (e: React.MouseEvent) => void
   onUpdateField: (field: string, value: unknown) => void
   onIncrementReview: () => void
   onDecrementReview: () => void
 }
 
-function ListConceptRow({ concept, focused, subjects, onFocus, onSaveState, onUpdateField, onIncrementReview, onDecrementReview }: ListConceptRowProps) {
+function ListConceptRow({ concept, focused, subjects, onFocus, onSaveState, onDelete, onUpdateField, onIncrementReview, onDecrementReview }: ListConceptRowProps) {
   const conceptSubjects = subjects.filter((s) => concept.subjectIds.includes(s.id))
 
   return (
@@ -329,6 +347,13 @@ function ListConceptRow({ concept, focused, subjects, onFocus, onSaveState, onUp
           <PriorityBadge value={concept.priority} onChange={(v) => onUpdateField('priority', v)} />
           <ReviewCounter count={concept.reviewCount} onIncrement={onIncrementReview} onDecrement={onDecrementReview} />
           <PinButton pinned={concept.pinned} onToggle={() => onUpdateField('pinned', !concept.pinned)} />
+          <button
+            onClick={onDelete}
+            className="text-gray-300 hover:text-red-500 transition-colors text-sm leading-none focus:outline-none focus:ring-2 focus:ring-red-400 rounded"
+            aria-label={`Delete concept: ${concept.name}`}
+          >
+            <span aria-hidden="true">✕</span>
+          </button>
         </div>
       </div>
     </div>

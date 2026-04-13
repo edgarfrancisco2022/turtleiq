@@ -27,10 +27,29 @@ export function useConcepts() {
 }
 
 export function useConcept(id: string) {
+  const qc = useQueryClient()
   return useQuery<Concept | null>({
     queryKey: ['concepts', id],
     queryFn: () => getConcept(id),
     enabled: !!id,
+    // Seed from list cache so ConceptView renders immediately when navigating
+    // from Library/SubjectView without waiting for a separate network fetch.
+    initialData: () => {
+      const list = qc.getQueryData<Concept[]>(['concepts'])
+      const concept = list?.find((c) => c.id === id)
+      if (!concept) return undefined
+      // Resolve names from already-cached subjects/topics/tags
+      const allSubjects = qc.getQueryData<{ id: string; name: string }[]>(['subjects']) ?? []
+      const allTopics   = qc.getQueryData<{ id: string; name: string }[]>(['topics'])   ?? []
+      const allTags     = qc.getQueryData<{ id: string; name: string }[]>(['tags'])     ?? []
+      return {
+        ...concept,
+        subjectNames: allSubjects.filter((s) => concept.subjectIds.includes(s.id)).map((s) => s.name),
+        topicNames:   allTopics.filter((t)   => concept.topicIds.includes(t.id)).map((t) => t.name),
+        tagNames:     allTags.filter((t)     => concept.tagIds.includes(t.id)).map((t) => t.name),
+      }
+    },
+    initialDataUpdatedAt: () => qc.getQueryState(['concepts'])?.dataUpdatedAt,
   })
 }
 

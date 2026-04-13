@@ -11,8 +11,6 @@ export const SORT_LABELS: Record<string, string> = {
   date_old: 'Oldest first',
   reviews_high: 'Most reviewed',
   reviews_low: 'Least reviewed',
-  priority_high: 'Priority high',
-  pinned_first: 'Pinned first',
 }
 
 const STATES: ConceptState[] = ['NEW', 'LEARNING', 'REVIEWING', 'MEMORIZING', 'STORED']

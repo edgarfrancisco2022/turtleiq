@@ -1,11 +1,11 @@
+'use client'
+
 import Link from 'next/link'
-import { getConcepts } from '@/actions/concepts'
-import { getStudySessions } from '@/actions/study-sessions'
-import { getSubjects, getTopics, getTags } from '@/actions/subjects'
+import { useConcepts } from '@/hooks/useConcepts'
+import { useStudySessions } from '@/hooks/useStudySessions'
+import { useSubjects, useTopics, useTags } from '@/hooks/useSubjects'
 
-export const metadata = { title: 'Overview — TortugaIQ' }
-
-// ── Helpers ─────────────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatMinutes(total: number): string {
   if (!total) return '0m'
@@ -21,20 +21,48 @@ function formatDate(date: Date | string | null | undefined): string | null {
   return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-// ── Shared components ────────────────────────────────────────────────────────
+// ── Accent system ─────────────────────────────────────────────────────────────
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
+type SectionAccent = 'blue' | 'emerald' | 'neutral'
+
+// ── Shared components ─────────────────────────────────────────────────────────
+
+function SectionTitle({ children, accent = 'neutral' }: { children: React.ReactNode; accent?: SectionAccent }) {
+  const accentBar: Record<SectionAccent, string> = {
+    blue: 'bg-blue-400',
+    emerald: 'bg-emerald-400',
+    neutral: 'bg-gray-300',
+  }
+  const labelColor: Record<SectionAccent, string> = {
+    blue: 'text-blue-500',
+    emerald: 'text-emerald-600',
+    neutral: 'text-gray-400',
+  }
   return (
-    <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
-      {children}
-    </h2>
+    <div className="flex items-center gap-3 mb-4">
+      <div className={`w-0.5 h-4 rounded-full flex-shrink-0 ${accentBar[accent]}`} />
+      <span className={`text-xs font-semibold uppercase tracking-wider flex-shrink-0 ${labelColor[accent]}`}>
+        {children}
+      </span>
+      <div className="flex-1 border-t border-gray-100" />
+    </div>
   )
 }
 
-function SummaryCard({ value, label }: { value: string | number; label: string }) {
+function SummaryCard({ value, label, accent = 'neutral' }: { value: string | number; label: string; accent?: SectionAccent }) {
+  const cardStyle: Record<SectionAccent, string> = {
+    blue: 'bg-blue-50 border-blue-100',
+    emerald: 'bg-emerald-50 border-emerald-100',
+    neutral: 'bg-gray-50 border-gray-200',
+  }
+  const valueColor: Record<SectionAccent, string> = {
+    blue: 'text-blue-700',
+    emerald: 'text-emerald-700',
+    neutral: 'text-gray-900',
+  }
   return (
-    <div className="bg-white border border-gray-200 rounded-lg px-4 py-3.5">
-      <div className="text-2xl font-bold text-gray-900 tabular-nums leading-tight">{value}</div>
+    <div className={`border rounded-xl px-4 py-3.5 ${cardStyle[accent]}`}>
+      <div className={`text-2xl font-bold tabular-nums leading-tight ${valueColor[accent]}`}>{value}</div>
       <div className="text-xs text-gray-400 mt-1">{label}</div>
     </div>
   )
@@ -44,21 +72,28 @@ function BreakdownList({
   title,
   items,
   emptyText,
+  dotColors,
 }: {
   title: string
   items: { name: string; value: string | number }[]
   emptyText: string
+  dotColors?: string[]
 }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4">
+    <div className="bg-white border border-gray-200 rounded-xl p-4">
       <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">{title}</div>
       {items.length === 0 ? (
         <p className="text-sm text-gray-400">{emptyText}</p>
       ) : (
         <div className="space-y-2">
           {items.map((item, i) => (
-            <div key={i} className="flex items-start justify-between gap-3 text-sm">
-              <span className="text-gray-700 min-w-0 break-words">{item.name}</span>
+            <div key={i} className="flex items-center justify-between gap-3 text-sm">
+              <div className="flex items-center gap-2 min-w-0">
+                {dotColors?.[i] && (
+                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dotColors[i]}`} aria-hidden="true" />
+                )}
+                <span className="text-gray-700 min-w-0 break-words">{item.name}</span>
+              </div>
               <span className="text-gray-400 flex-shrink-0 tabular-nums">{item.value}</span>
             </div>
           ))}
@@ -68,16 +103,24 @@ function BreakdownList({
   )
 }
 
-// ── Main page ────────────────────────────────────────────────────────────────
+// ── State dot colors ──────────────────────────────────────────────────────────
 
-export default async function OverviewPage() {
-  const [concepts, studySessions, subjects, topics, tags] = await Promise.all([
-    getConcepts(),
-    getStudySessions(),
-    getSubjects(),
-    getTopics(),
-    getTags(),
-  ])
+const STATE_DOT_COLORS: Record<string, string> = {
+  NEW: 'bg-slate-400',
+  LEARNING: 'bg-blue-400',
+  REVIEWING: 'bg-amber-400',
+  MEMORIZING: 'bg-teal-400',
+  STORED: 'bg-emerald-500',
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
+
+export default function OverviewPage() {
+  const { data: concepts = [] } = useConcepts()
+  const { data: studySessions = [] } = useStudySessions()
+  const { data: subjects = [] } = useSubjects()
+  const { data: topics = [] } = useTopics()
+  const { data: tags = [] } = useTags()
 
   // ── Study ──────────────────────────────────────────────────────────────────
   const totalMinutes = studySessions.reduce((acc, s) => acc + (s.minutes || 0), 0)
@@ -187,24 +230,21 @@ export default async function OverviewPage() {
 
       {/* ── Section 1: Study ─────────────────────────────────── */}
       <section className="mb-10">
-        <SectionTitle>Study</SectionTitle>
+        <SectionTitle accent="blue">Study</SectionTitle>
 
-        {/* Summary row */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
-          <SummaryCard value={formatMinutes(totalMinutes)} label="Total Study Time" />
-          <SummaryCard value={totalSessions} label="Study Sessions" />
-          <SummaryCard value={totalReviews} label="Total Reviews" />
+          <SummaryCard accent="blue" value={formatMinutes(totalMinutes)} label="Total Study Time" />
+          <SummaryCard accent="blue" value={totalSessions} label="Study Sessions" />
+          <SummaryCard accent="blue" value={totalReviews} label="Total Reviews" />
         </div>
 
-        {/* Breakdowns */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
           <BreakdownList title="Study Time by Subject" items={timeBySubject} emptyText="No study data available" />
           <BreakdownList title="Sessions by Subject" items={sessionsBySubjectList} emptyText="No study data available" />
           <BreakdownList title="Reviews by Subject" items={reviewsBySubjectList} emptyText="No review data available" />
         </div>
 
-        {/* Last Study Session */}
-        <div className="bg-white border border-gray-200 rounded-lg px-4 py-3.5">
+        <div className="bg-white border border-gray-200 rounded-xl px-4 py-3.5">
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Last Study Session</div>
           {lastSession ? (
             <p className="text-sm text-gray-700">
@@ -223,24 +263,26 @@ export default async function OverviewPage() {
 
       {/* ── Section 2: Inventory ──────────────────────────────── */}
       <section className="mb-10">
-        <SectionTitle>Inventory</SectionTitle>
+        <SectionTitle accent="emerald">Inventory</SectionTitle>
 
-        {/* Summary row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
-          <SummaryCard value={concepts.length} label="Total Concepts" />
-          <SummaryCard value={subjects.length} label="Subjects" />
-          <SummaryCard value={topics.length} label="Topics" />
-          <SummaryCard value={tags.length} label="Tags" />
+          <SummaryCard accent="emerald" value={concepts.length} label="Total Concepts" />
+          <SummaryCard accent="emerald" value={subjects.length} label="Subjects" />
+          <SummaryCard accent="emerald" value={topics.length} label="Topics" />
+          <SummaryCard accent="emerald" value={tags.length} label="Tags" />
         </div>
 
-        {/* Row 1: Concepts by Subject + Concept State */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
           <BreakdownList title="Concepts by Subject" items={conceptsBySubject} emptyText="No subjects yet" />
-          <BreakdownList title="Concept State" items={conceptState} emptyText="" />
+          <BreakdownList
+            title="Concept State"
+            items={conceptState}
+            emptyText=""
+            dotColors={STATE_ORDER.map((s) => STATE_DOT_COLORS[s])}
+          />
         </div>
 
-        {/* Row 2: Recent Concepts — full width */}
-        <div className="bg-white border border-gray-200 rounded-lg px-4 py-3.5">
+        <div className="bg-white border border-gray-200 rounded-xl px-4 py-3.5">
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Recent Concepts</div>
           {recentConcepts.length === 0 ? (
             <p className="text-sm text-gray-400">No concepts added yet</p>
@@ -252,20 +294,24 @@ export default async function OverviewPage() {
                   <Link
                     key={c.id}
                     href={`/app/concepts/${c.id}`}
-                    className="group flex items-start gap-3 text-sm -mx-2 px-2 py-1.5 rounded-md hover:bg-gray-100 transition-colors duration-150 min-w-0"
+                    className="group flex items-center gap-3 text-sm -mx-2 px-2 py-1.5 rounded-md hover:bg-gray-100 transition-colors duration-150 min-w-0"
                   >
                     {c.createdAt && (
-                      <span className="text-gray-400 flex-shrink-0 text-xs tabular-nums pt-px">
+                      <span className="text-gray-400 flex-shrink-0 text-xs tabular-nums">
                         {formatDate(c.createdAt)}
                       </span>
                     )}
-                    <span className="text-gray-700 group-hover:text-gray-900 transition-colors min-w-0 break-words">
+                    <span className="text-gray-700 group-hover:text-gray-900 transition-colors min-w-0 break-words flex-1">
                       {c.name}
                     </span>
                     {conceptSubjects.length > 0 && (
-                      <span className="text-gray-400 text-xs flex-shrink-0">
-                        {conceptSubjects.map((s) => s.name).join(' · ')}
-                      </span>
+                      <div className="flex flex-wrap gap-1 flex-shrink-0">
+                        {conceptSubjects.map((s) => (
+                          <span key={s.id} className="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full">
+                            {s.name}
+                          </span>
+                        ))}
+                      </div>
                     )}
                   </Link>
                 )

@@ -20,7 +20,7 @@ function formatTime(totalMinutes: number) {
   return `${h}h${m}m`
 }
 
-const TimerIcon = () => (
+const ClockIcon = () => (
   <svg
     viewBox="0 0 18 18"
     fill="none"
@@ -30,10 +30,8 @@ const TimerIcon = () => (
     strokeLinecap="round"
     strokeLinejoin="round"
   >
-    <circle cx="9" cy="11" r="5.5" />
-    <line x1="9" y1="8.5" x2="9" y2="11" />
-    <line x1="7" y1="2.5" x2="11" y2="2.5" />
-    <line x1="9" y1="2.5" x2="9" y2="5.5" />
+    <circle cx="9" cy="9" r="7.5" />
+    <polyline points="9,5 9,9 12,11" />
   </svg>
 )
 
@@ -47,16 +45,26 @@ export default function StudySessionBar({ collapsed, onMobileOpen }: Props) {
   const { data: studySessions = [] } = useStudySessions()
   const { mutate: addStudySession } = useAddStudySession()
 
-  const [selectedTime, setSelectedTime] = useState<number | null>(null)
+  const [selectedTimes, setSelectedTimes] = useState<Set<number>>(new Set())
   const [selectedSubject, setSelectedSubject] = useState('')
 
   const sorted = [...subjects].sort((a, b) => a.name.localeCompare(b.name))
   const totalMinutes = studySessions.reduce((sum, s) => sum + s.minutes, 0)
+  const selectedTotal = Array.from(selectedTimes).reduce((sum, m) => sum + m, 0)
+
+  function toggleTime(minutes: number) {
+    setSelectedTimes((prev) => {
+      const next = new Set(prev)
+      if (next.has(minutes)) next.delete(minutes)
+      else next.add(minutes)
+      return next
+    })
+  }
 
   function handleAdd() {
-    if (!selectedTime) return
-    addStudySession({ minutes: selectedTime, subjectId: selectedSubject || null })
-    setSelectedTime(null)
+    if (selectedTimes.size === 0) return
+    addStudySession({ minutes: selectedTotal, subjectId: selectedSubject || null })
+    setSelectedTimes(new Set())
     setSelectedSubject('')
   }
 
@@ -91,8 +99,8 @@ export default function StudySessionBar({ collapsed, onMobileOpen }: Props) {
       <div className="flex items-center gap-3 min-w-max">
         {/* Label */}
         <span className="flex items-center gap-1.5 text-gray-400 whitespace-nowrap select-none">
-          <TimerIcon />
-          <span className="text-xs font-medium text-gray-500 tracking-wide">Study Time</span>
+          <ClockIcon />
+          <span className="text-xs font-medium text-gray-500 tracking-wide">Study Session</span>
         </span>
 
         <div className="w-px h-4 bg-gray-200 flex-shrink-0" aria-hidden="true" />
@@ -112,11 +120,11 @@ export default function StudySessionBar({ collapsed, onMobileOpen }: Props) {
           {TIME_OPTIONS.map((opt) => (
             <button
               key={opt.minutes}
-              onClick={() => setSelectedTime((t) => (t === opt.minutes ? null : opt.minutes))}
-              aria-pressed={selectedTime === opt.minutes}
+              onClick={() => toggleTime(opt.minutes)}
+              aria-pressed={selectedTimes.has(opt.minutes)}
               aria-label={`Select ${opt.label}`}
               className={`inline-flex items-center justify-center text-xs font-medium px-2.5 py-1 rounded-md border transition-all select-none focus:outline-none ${
-                selectedTime === opt.minutes
+                selectedTimes.has(opt.minutes)
                   ? 'border-gray-700 bg-gray-800 text-white'
                   : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50/80'
               }`}
@@ -147,17 +155,17 @@ export default function StudySessionBar({ collapsed, onMobileOpen }: Props) {
         {/* Log Time button */}
         <button
           onClick={handleAdd}
-          disabled={!selectedTime}
-          aria-disabled={!selectedTime}
-          title={!selectedTime ? 'Select a time increment first' : undefined}
+          disabled={selectedTimes.size === 0}
+          aria-disabled={selectedTimes.size === 0}
+          title={selectedTimes.size === 0 ? 'Select a time increment first' : undefined}
           className={`inline-flex items-center justify-center gap-1 text-xs px-2.5 py-1 rounded-md font-medium border transition-colors focus:outline-none whitespace-nowrap select-none ${
-            selectedTime
+            selectedTimes.size > 0
               ? 'border-gray-700 bg-gray-800 text-white hover:bg-gray-700 cursor-pointer'
               : 'border-gray-200 bg-gray-50 text-gray-400 pointer-events-none'
           }`}
         >
           <span>+</span>
-          <span>Log Time</span>
+          <span>Log{selectedTimes.size > 0 ? ` ${formatTime(selectedTotal)}` : ' Time'}</span>
         </button>
       </div>
     </div>

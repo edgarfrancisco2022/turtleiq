@@ -1,6 +1,6 @@
 'use server'
 
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { db } from '@/db'
 import { studySessions } from '@/db/schema'
@@ -37,4 +37,11 @@ export async function addStudySession(input: StudySessionInput): Promise<StudySe
     .returning()
 
   return session
+}
+
+export async function deleteStudySession(id: string): Promise<void> {
+  const userId = await requireAuth()
+  await db
+    .delete(studySessions)
+    .where(and(eq(studySessions.id, id), eq(studySessions.userId, userId)))
 }

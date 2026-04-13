@@ -4,6 +4,8 @@ import { useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useConcept, useUpdateConceptField, useUpdateConceptContent, useIncrementReview, useDecrementReview } from '@/hooks/useConcepts'
 import { useConceptForm } from '@/components/providers/ConceptFormProvider'
+import { useDirtyState } from '@/components/providers/DirtyStateProvider'
+import ConceptLoading from './loading'
 import MarkdownEditor, { MVK_PLACEHOLDER, MVK_EXAMPLE_HINT, MVK_EDIT_PLACEHOLDER } from '@/components/ui/MarkdownEditor'
 import { StateSelector, PriorityBadge, ReviewCounter, PinButton } from '@/components/ui/StatusBadge'
 import ShortcutsHintBar from '@/components/ui/ShortcutsHintBar'
@@ -13,13 +15,21 @@ const getMain = () => document.getElementById('main-content')
 export default function ConceptView() {
   const { conceptId } = useParams<{ conceptId: string }>()
   const router = useRouter()
-  const { openConceptForm } = useConceptForm()
+  const { openConceptForm, closeConceptForm } = useConceptForm()
+  const { requestNavigation } = useDirtyState()
 
   const { data: concept, isLoading } = useConcept(conceptId)
   const updateFieldMut = useUpdateConceptField()
   const updateContentMut = useUpdateConceptContent()
   const incrementMut = useIncrementReview()
   const decrementMut = useDecrementReview()
+
+  // Drop the navigation backdrop (from ConceptFormProvider) now that this page is rendered.
+  // closeConceptForm is a no-op when no form/backdrop is active.
+  useEffect(() => {
+    closeConceptForm()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conceptId])
 
   // Always scroll to top when navigating to a concept
   useEffect(() => {
@@ -34,8 +44,10 @@ export default function ConceptView() {
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) || t.contentEditable === 'true') return
       if (e.key === 'Backspace') {
         e.preventDefault()
-        sessionStorage.setItem('cv-back', '1')
-        router.back()
+        requestNavigation(() => {
+          sessionStorage.setItem('cv-back', '1')
+          router.back()
+        })
       } else if (e.key === '+' || e.key === '=') {
         incrementMut.mutate(conceptId)
       } else if (e.key === '-') {
@@ -45,14 +57,10 @@ export default function ConceptView() {
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conceptId, router])
+  }, [conceptId, router, requestNavigation])
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-gray-400 text-sm">Loading…</p>
-      </div>
-    )
+    return <ConceptLoading />
   }
 
   if (!concept) {
@@ -64,8 +72,10 @@ export default function ConceptView() {
   }
 
   function handleBack() {
-    sessionStorage.setItem('cv-back', '1')
-    router.back()
+    requestNavigation(() => {
+      sessionStorage.setItem('cv-back', '1')
+      router.back()
+    })
   }
 
   return (

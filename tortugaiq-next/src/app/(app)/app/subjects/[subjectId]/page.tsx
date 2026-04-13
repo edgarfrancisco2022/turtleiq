@@ -11,6 +11,7 @@ import ShortcutsHintBar from '@/components/ui/ShortcutsHintBar'
 import { StateSelector, PriorityBadge, ReviewCounter, PinButton, PinIcon } from '@/components/ui/StatusBadge'
 import InlineEditor from '@/components/ui/InlineEditor'
 import { MVK_PLACEHOLDER, MVK_EXAMPLE_HINT, MVK_EDIT_PLACEHOLDER } from '@/components/ui/MarkdownEditor'
+import DeleteConceptDialog from '@/components/ui/DeleteConceptDialog'
 import type { FilterState } from '@/hooks/useFilterSort'
 import type { Concept, ConceptState, ConceptPriority } from '@/lib/types'
 
@@ -58,6 +59,7 @@ export default function SubjectView() {
   const [filters, setFiltersState] = useState<FilterState>(() => savedState?.filters ?? EMPTY_FILTERS)
   const [focusedIdx, setFocusedIdx] = useState(0)
   const [panelOpen, setPanelOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<Concept | null>(null)
 
   function setFilter(key: keyof FilterState, value: string[] | boolean) {
     setFiltersState((f) => ({ ...f, [key]: value }))
@@ -206,7 +208,7 @@ export default function SubjectView() {
 
   function handleDelete(e: React.MouseEvent, concept: Concept) {
     e.preventDefault()
-    if (window.confirm(`Delete "${concept.name}"?`)) deleteMut.mutate(concept.id)
+    setDeleteTarget(concept)
   }
 
   function saveState(conceptId: string) {
@@ -328,6 +330,14 @@ export default function SubjectView() {
           </div>
         </button>
       </div>
+
+      {deleteTarget && (
+        <DeleteConceptDialog
+          conceptName={deleteTarget.name}
+          onConfirm={() => { deleteMut.mutate(deleteTarget.id); setDeleteTarget(null) }}
+          onCancel={() => setDeleteTarget(null)}
+        />
+      )}
     </div>
   )
 }

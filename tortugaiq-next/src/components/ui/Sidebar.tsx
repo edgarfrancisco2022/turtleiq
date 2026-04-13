@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
 import { useSubjects } from '@/hooks/useSubjects'
+import { useDirtyState } from '@/components/providers/DirtyStateProvider'
 
 // ── Icons ──────────────────────────────────────────────────────────────────
 
@@ -68,6 +69,13 @@ const HomeIcon = () => (
   </svg>
 )
 
+const ClockIcon = () => (
+  <svg viewBox="0 0 18 18" fill="none" className="w-4 h-4 flex-shrink-0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="9" cy="9" r="7" />
+    <polyline points="9 5 9 9 12 11" />
+  </svg>
+)
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 function getInitials(name = '', email = '') {
@@ -100,6 +108,8 @@ function NavItem({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const router = useRouter()
+  const { isDirty, requestNavigation } = useDirtyState()
   const isActive = exact ? pathname === href : pathname.startsWith(href)
   const base = isActive
     ? 'bg-gray-700 text-white font-medium'
@@ -109,7 +119,17 @@ function NavItem({
     <Link
       href={href}
       title={title}
-      onClick={onClick}
+      onClick={(e) => {
+        if (isDirty) {
+          e.preventDefault()
+          requestNavigation(() => {
+            onClick?.()
+            router.push(href)
+          })
+        } else {
+          onClick?.()
+        }
+      }}
       className={
         collapsed
           ? `flex items-center justify-center p-2 rounded-lg transition-colors ${base}`
@@ -140,6 +160,8 @@ export default function Sidebar({
 }: Props) {
   const { data: subjects = [] } = useSubjects()
   const { data: session } = useSession()
+  const router = useRouter()
+  const { isDirty, requestNavigation } = useDirtyState()
   const user = session?.user
 
   const sorted = [...subjects].sort((a, b) => a.name.localeCompare(b.name))
@@ -184,6 +206,12 @@ export default function Sidebar({
               href="/app"
               className="flex items-center gap-2 hover:opacity-80 transition-opacity"
               aria-label="TortugaIQ home"
+              onClick={(e) => {
+                if (isDirty) {
+                  e.preventDefault()
+                  requestNavigation(() => router.push('/app'))
+                }
+              }}
             >
               <span className="text-xl leading-none whitespace-nowrap" aria-hidden="true">
                 🔍🐢
@@ -244,11 +272,23 @@ export default function Sidebar({
           )}
         </div>
 
-        {/* Overview */}
-        <div className={`pt-1 space-y-0.5 ${collapsed ? 'px-2' : 'px-3'}`}>
+        {/* Track section */}
+        <div className={`pt-3 space-y-0.5 ${collapsed ? 'px-2' : 'px-3'}`}>
+          {!collapsed && (
+            <p
+              className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-1"
+              aria-hidden="true"
+            >
+              Track
+            </p>
+          )}
           <NavItem href="/app/overview" collapsed={collapsed} title="Overview" onClick={onMobileClose}>
             <OverviewIcon />
             {!collapsed && ' Overview'}
+          </NavItem>
+          <NavItem href="/app/sessions" collapsed={collapsed} title="Sessions" onClick={onMobileClose}>
+            <ClockIcon />
+            {!collapsed && ' Sessions'}
           </NavItem>
         </div>
 
@@ -359,12 +399,25 @@ function SubjectLink({
   onMobileClose: () => void
 }) {
   const pathname = usePathname()
+  const router = useRouter()
+  const { isDirty, requestNavigation } = useDirtyState()
   const isActive = pathname === `/app/subjects/${subject.id}`
+  const href = `/app/subjects/${subject.id}`
 
   return (
     <Link
-      href={`/app/subjects/${subject.id}`}
-      onClick={onMobileClose}
+      href={href}
+      onClick={(e) => {
+        if (isDirty) {
+          e.preventDefault()
+          requestNavigation(() => {
+            onMobileClose()
+            router.push(href)
+          })
+        } else {
+          onMobileClose()
+        }
+      }}
       className={`flex items-center justify-between px-3 py-1.5 rounded-lg text-sm transition-colors ${
         isActive
           ? 'bg-gray-700 text-white font-medium'

@@ -256,6 +256,7 @@ export function PinButton({
         e.stopPropagation()
         e.preventDefault()
         onToggle()
+        e.currentTarget.blur()
       }}
       title={pinned ? 'Unpin concept' : 'Pin concept'}
       className={`inline-flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-1 rounded ${pinned ? 'text-amber-400' : 'text-gray-300 hover:text-amber-300'}`}

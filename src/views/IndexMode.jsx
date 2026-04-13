@@ -304,7 +304,7 @@ export default function IndexMode() {
 
       {filtered.length === 0 ? (
         <div className="text-center py-20 text-gray-400 text-sm">
-          {concepts.length === 0 ? 'No concepts yet.' : 'No concepts match the current filters.'}
+          {concepts.length === 0 ? 'No concepts yet. Create your first concept to get started.' : 'No concepts match the current filters.'}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-x-1 gap-y-0">

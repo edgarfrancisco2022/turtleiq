@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getStudySessions, addStudySession } from '@/actions/study-sessions'
+import { getStudySessions, addStudySession, deleteStudySession } from '@/actions/study-sessions'
 import type { StudySession, StudySessionInput } from '@/lib/types'
 
 export function useStudySessions() {
@@ -19,5 +19,25 @@ export function useAddStudySession() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['study-sessions'] })
     },
+  })
+}
+
+export function useDeleteStudySession() {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) => deleteStudySession(id),
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: ['study-sessions'] })
+      const prev = qc.getQueryData<StudySession[]>(['study-sessions'])
+      qc.setQueryData<StudySession[]>(['study-sessions'], (old) =>
+        old?.filter((s) => s.id !== id) ?? []
+      )
+      return { prev }
+    },
+    onError: (_, __, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['study-sessions'], ctx.prev)
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['study-sessions'] }),
   })
 }

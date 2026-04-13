@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
 import MarkdownHelpPanel from './MarkdownHelpPanel'
+import { useDirtyState } from '@/components/providers/DirtyStateProvider'
 
 const MD_PLUGINS = {
   remark: [remarkGfm, remarkMath],
@@ -54,6 +55,20 @@ export default function MarkdownEditor({
   const [draft, setDraft] = useState('')
   const [viewMode, setViewMode] = useState<'code' | 'preview'>('code')
   const [showHelp, setShowHelp] = useState(false)
+  const { setDirty } = useDirtyState()
+
+  // Report dirty state whenever draft diverges from saved content while editing
+  useEffect(() => {
+    if (isEditing) {
+      setDirty(draft !== content)
+    }
+  }, [draft, isEditing, content, setDirty])
+
+  // Clear dirty state on unmount (safety net for navigation that bypasses guards)
+  useEffect(() => {
+    return () => setDirty(false)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function startEdit() {
     setDraft(content)
@@ -62,11 +77,13 @@ export default function MarkdownEditor({
   }
 
   function handleSave() {
+    setDirty(false)
     onSave(draft)
     setIsEditing(false)
   }
 
   function handleCancel() {
+    setDirty(false)
     setIsEditing(false)
   }
 

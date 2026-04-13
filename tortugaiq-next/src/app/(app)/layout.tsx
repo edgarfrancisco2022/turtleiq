@@ -4,19 +4,21 @@ import { useState } from 'react'
 import Sidebar from '@/components/ui/Sidebar'
 import StudySessionBar from '@/components/ui/StudySessionBar'
 import { ConceptFormProvider, useConceptForm } from '@/components/providers/ConceptFormProvider'
+import { DirtyStateProvider, useDirtyState } from '@/components/providers/DirtyStateProvider'
 import { SidebarStateContext } from '@/components/providers/SidebarStateProvider'
 
 function AppShellInner({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const { openConceptForm } = useConceptForm()
+  const { requestNavigation } = useDirtyState()
 
   const mainLeft = `${collapsed ? 'md:pl-16' : 'md:pl-60'}`
 
   return (
     <SidebarStateContext.Provider value={{ collapsed }}>
       <Sidebar
-        onNewConcept={() => openConceptForm()}
+        onNewConcept={() => requestNavigation(() => openConceptForm())}
         collapsed={collapsed}
         onToggle={() => setCollapsed((c) => !c)}
         mobileOpen={mobileOpen}
@@ -39,7 +41,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 
       <main
         id="main-content"
-        className={`${mainLeft} pt-11 min-h-screen transition-all duration-200 overflow-y-auto`}
+        className={`${mainLeft} pt-11 h-screen transition-all duration-200 overflow-y-auto overflow-x-hidden scroll-pt-11 scroll-pb-12`}
       >
         {children}
       </main>
@@ -49,8 +51,10 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ConceptFormProvider>
-      <AppShellInner>{children}</AppShellInner>
-    </ConceptFormProvider>
+    <DirtyStateProvider>
+      <ConceptFormProvider>
+        <AppShellInner>{children}</AppShellInner>
+      </ConceptFormProvider>
+    </DirtyStateProvider>
   )
 }
