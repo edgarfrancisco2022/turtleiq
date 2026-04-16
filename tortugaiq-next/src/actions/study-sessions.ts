@@ -4,7 +4,7 @@ import { and, desc, eq } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { db } from '@/db'
 import { studySessions } from '@/db/schema'
-import { addStudySessionSchema } from '@/lib/validations'
+import { addStudySessionSchema, updateStudySessionSchema } from '@/lib/validations'
 import type { StudySession, StudySessionInput } from '@/lib/types'
 
 async function requireAuth(): Promise<string> {
@@ -43,5 +43,18 @@ export async function deleteStudySession(id: string): Promise<void> {
   const userId = await requireAuth()
   await db
     .delete(studySessions)
+    .where(and(eq(studySessions.id, id), eq(studySessions.userId, userId)))
+}
+
+export async function updateStudySession(
+  id: string,
+  input: { minutes: number; subjectId: string | null }
+): Promise<void> {
+  const userId = await requireAuth()
+  const parsed = updateStudySessionSchema.parse(input)
+
+  await db
+    .update(studySessions)
+    .set({ minutes: parsed.minutes, subjectId: parsed.subjectId ?? null })
     .where(and(eq(studySessions.id, id), eq(studySessions.userId, userId)))
 }

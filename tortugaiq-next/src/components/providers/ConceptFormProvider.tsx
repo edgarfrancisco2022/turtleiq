@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import ConceptForm from '@/components/ui/ConceptForm'
+import { useViewStateRegistry } from './ViewStateRegistryProvider'
 import type { Concept } from '@/lib/types'
 
 interface ConceptFormContextType {
@@ -27,6 +28,7 @@ export function ConceptFormProvider({ children }: { children: React.ReactNode })
   // mount to drop the backdrop once the new page is actually rendered.
   const [navigating, setNavigating] = useState(false)
   const router = useRouter()
+  const { captureViewState } = useViewStateRegistry()
 
   function openConceptForm(c?: Concept | null) {
     setConcept(c ?? null)
@@ -42,8 +44,11 @@ export function ConceptFormProvider({ children }: { children: React.ReactNode })
 
   function handleDone(id: string) {
     if (!concept) {
-      // New concept: switch to backdrop-only mode and navigate.
-      // The form disappears but the backdrop stays until ConceptView mounts.
+      // New concept: save current view state before navigating away, then switch
+      // to backdrop-only mode. The form disappears but the backdrop stays until
+      // ConceptView mounts. captureViewState() is a no-op when no list view is
+      // mounted (e.g. when creating a second concept from within ConceptView).
+      captureViewState()
       setNavigating(true)
       router.push(`/app/concepts/${id}`)
     } else {

@@ -6,11 +6,11 @@ import { useConcepts, useUpdateConceptContent, useIncrementReview, useDecrementR
 import { useTopics, useTags } from '@/hooks/useSubjects'
 import { useSidebarState } from '@/components/providers/SidebarStateProvider'
 import { useFilterSort } from '@/hooks/useFilterSort'
+import { useViewStateRegistry } from '@/components/providers/ViewStateRegistryProvider'
 import FilterSortBar from '@/components/ui/FilterSortBar'
 import ShortcutsHintBar from '@/components/ui/ShortcutsHintBar'
 import { PinIcon } from '@/components/ui/StatusBadge'
-import InlineEditor from '@/components/ui/InlineEditor'
-import { MVK_PLACEHOLDER, MVK_EXAMPLE_HINT, MVK_EDIT_PLACEHOLDER } from '@/components/ui/MarkdownEditor'
+import MvkDrawer from '@/components/ui/MvkDrawer'
 import type { FilterState } from '@/hooks/useFilterSort'
 import type { Concept } from '@/lib/types'
 
@@ -26,20 +26,27 @@ function isEditableTarget(e: KeyboardEvent) {
 
 /**
  * Groups a flat concept list (already sorted) into alphabetical sections.
- * Non A–Z names go under '#'.
+ * Non A–Z names go under '#' (numbers first, then symbols, lexicographic).
+ *
+ * IMPORTANT: The '#' group is custom-sorted (numeric-first) which can differ
+ * from the A-Z order of the incoming `concepts` array. We assign `visualIdx`
+ * AFTER all sorting so it always matches the on-screen position. All keyboard
+ * navigation uses these visual indices rather than the filtered-array indices,
+ * preventing the mismatch that caused elements to be skipped or focused at the
+ * wrong position.
  */
-function groupByLetter(concepts: Concept[]): { letter: string; items: { concept: Concept; globalIdx: number }[] }[] {
-  const map: Record<string, { concept: Concept; globalIdx: number }[]> = {}
-  concepts.forEach((c, globalIdx) => {
+function groupByLetter(concepts: Concept[]): { letter: string; items: { concept: Concept; visualIdx: number }[] }[] {
+  const map: Record<string, Concept[]> = {}
+  concepts.forEach((c) => {
     const first = (c.name?.trim()[0] ?? '').toUpperCase()
     const key = /^[A-Z]$/.test(first) ? first : '#'
     if (!map[key]) map[key] = []
-    map[key].push({ concept: c, globalIdx })
+    map[key].push(c)
   })
 
   if (map['#']) {
     map['#'].sort((a, b) => {
-      const na = a.concept.name, nb = b.concept.name
+      const na = a.name, nb = b.name
       const aNum = /^\d/.test(na), bNum = /^\d/.test(nb)
       if (aNum && bNum) return parseFloat(na) - parseFloat(nb)
       if (aNum) return -1
@@ -54,7 +61,13 @@ function groupByLetter(concepts: Concept[]): { letter: string; items: { concept:
     return a.localeCompare(b)
   })
 
-  return keys.map((letter) => ({ letter, items: map[letter] }))
+  // Assign visual indices sequentially after all sorting is done so they
+  // always reflect the actual rendered order (including '#' custom sort).
+  let visualIdx = 0
+  return keys.map((letter) => ({
+    letter,
+    items: map[letter].map((concept) => ({ concept, visualIdx: visualIdx++ })),
+  }))
 }
 
 interface BoundingEntry {
@@ -65,8 +78,20 @@ interface BoundingEntry {
   bottom: number
 }
 
-function getVisualNavIndex(direction: 'up' | 'down', currentIdx: number, filtered: Concept[]): number {
-  const els: BoundingEntry[] = filtered
+/**
+ * Visual up/down navigation using TOP-based row detection.
+ *
+ * All elements in the same CSS grid row share an identical `top` value, so
+ * comparing tops is robust against the row-stretch effect that `line-clamp-3`
+ * causes: the focused element grows taller, the grid stretches the whole row,
+ * and `bottom` values of non-focused peers become artificially large. Comparing
+ * tops sidesteps that entirely.
+ *
+ * `concepts` must be in VISUAL order (i.e. `visualOrder`, not `filtered`) so
+ * that the returned index is a valid visual index.
+ */
+function getVisualNavIndex(direction: 'up' | 'down', currentIdx: number, concepts: Concept[]): number {
+  const els: BoundingEntry[] = concepts
     .map((c, i) => {
       const el = document.getElementById(`idx-${c.id}`)
       if (!el) return null
@@ -79,7 +104,7 @@ function getVisualNavIndex(direction: 'up' | 'down', currentIdx: number, filtere
   if (!cur) return currentIdx
 
   if (direction === 'down') {
-    const below = els.filter((e) => e.top >= cur.bottom - 2)
+    const below = els.filter((e) => e.top > cur.top + 2)
     if (!below.length) return currentIdx
     const minTop = Math.min(...below.map((e) => e.top))
     const row = below.filter((e) => e.top <= minTop + 4)
@@ -87,10 +112,10 @@ function getVisualNavIndex(direction: 'up' | 'down', currentIdx: number, filtere
     const candidates = overlapping.length ? overlapping : row
     return candidates.reduce((best, e) => (e.left < best.left ? e : best)).idx
   } else {
-    const above = els.filter((e) => e.bottom <= cur.top + 2)
+    const above = els.filter((e) => e.top < cur.top - 2)
     if (!above.length) return currentIdx
-    const maxBottom = Math.max(...above.map((e) => e.bottom))
-    const row = above.filter((e) => e.bottom >= maxBottom - 4)
+    const maxTop = Math.max(...above.map((e) => e.top))
+    const row = above.filter((e) => e.top >= maxTop - 4)
     const overlapping = row.filter((e) => e.left < cur.right && e.right > cur.left)
     const candidates = overlapping.length ? overlapping : row
     return candidates.reduce((best, e) => (e.right > best.right ? e : best)).idx
@@ -100,6 +125,7 @@ function getVisualNavIndex(direction: 'up' | 'down', currentIdx: number, filtere
 export default function IndexMode() {
   const router = useRouter()
   const { collapsed } = useSidebarState()
+  const { registerViewStateSaver } = useViewStateRegistry()
 
   const { data: allConcepts = [] } = useConcepts()
   const { data: topics = [] } = useTopics()
@@ -118,9 +144,29 @@ export default function IndexMode() {
   const { filtered, filters, sort, setFilter, setSort, clearFilters, hasActiveFilters } =
     useFilterSort(allConcepts, { initialFilters: savedState?.filters, initialSort: savedState?.sort })
 
+  // groups is the rendered structure; visualOrder is concepts in exactly the
+  // order they appear on screen (including '#' custom sort). focusedIdx always
+  // indexes into visualOrder, not into filtered.
+  const groups = groupByLetter(filtered)
+  const visualOrder = groups.flatMap((g) => g.items.map((item) => item.concept))
+
   const [focusedIdx, setFocusedIdx] = useState(0)
   const [panelOpen, setPanelOpen] = useState(false)
-  const focusedConcept = filtered[focusedIdx] ?? null
+  const focusedConcept = visualOrder[focusedIdx] ?? null
+
+  // Registry ref: inline assignment keeps closure fresh every render.
+  const saveStateForRegistryRef = useRef<() => void>(() => {})
+  saveStateForRegistryRef.current = () => {
+    sessionStorage.setItem(STATE_KEY, JSON.stringify({ filters, sort }))
+    const el = getMain()
+    if (el) sessionStorage.setItem(SCROLL_KEY, String(el.scrollTop))
+    const id = visualOrder[focusedIdx]?.id
+    if (id) sessionStorage.setItem(LAST_ID_KEY, id)
+  }
+
+  useEffect(() => {
+    return registerViewStateSaver(() => saveStateForRegistryRef.current())
+  }, [registerViewStateSaver])
 
   const suppressScroll = useRef(false)
   const backRestoring = useRef(false)
@@ -132,8 +178,26 @@ export default function IndexMode() {
     if (el) el.scrollTop = 0
 
     if (!sessionStorage.getItem('cv-back')) return
+
+    // Next.js router cache can serve IndexMode from cache (no remount) when the
+    // user presses Back, leaving cv-back in sessionStorage unconsumed. On a
+    // later fresh mount (page refresh or direct navigation) that stale entry
+    // would incorrectly trigger restoration. ConceptView sets
+    // window.__cvBackPending right before router.back() — a value that resets
+    // on page refresh unlike sessionStorage — so we can tell a genuine
+    // back-navigation from a stale entry.
+    const isGenuineBackNav = !!(window as any).__cvBackPending
+    ;(window as any).__cvBackPending = false
+
     sessionStorage.removeItem('cv-back')
     sessionStorage.removeItem(STATE_KEY)
+
+    if (!isGenuineBackNav) {
+      sessionStorage.removeItem(SCROLL_KEY)
+      sessionStorage.removeItem(LAST_ID_KEY)
+      return
+    }
+
     const savedScroll = sessionStorage.getItem(SCROLL_KEY)
     sessionStorage.removeItem(SCROLL_KEY)
     const lastId = sessionStorage.getItem(LAST_ID_KEY)
@@ -141,7 +205,7 @@ export default function IndexMode() {
 
     if (!lastId) return
 
-    const idx = filtered.findIndex((c) => c.id === lastId)
+    const idx = visualOrder.findIndex((c) => c.id === lastId)
     if (idx >= 0) {
       backRestoring.current = true
       setFocusedIdx(idx)
@@ -163,10 +227,10 @@ export default function IndexMode() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Deferred focus restoration if filtered was empty on first render
+  // Deferred focus restoration if visualOrder was empty on first render
   useEffect(() => {
-    if (!pendingFocusId.current || !filtered.length) return
-    const idx = filtered.findIndex((c) => c.id === pendingFocusId.current)
+    if (!pendingFocusId.current || !visualOrder.length) return
+    const idx = visualOrder.findIndex((c) => c.id === pendingFocusId.current)
     if (idx < 0) return
     pendingFocusId.current = null
     backRestoring.current = true
@@ -185,29 +249,31 @@ export default function IndexMode() {
   // Scroll focused pill into view
   useEffect(() => {
     if (suppressScroll.current) return
-    const concept = filtered[focusedIdx]
+    const concept = visualOrder[focusedIdx]
     if (!concept) return
     const el = document.getElementById(`idx-${concept.id}`)
     if (el) el.scrollIntoView({ block: 'nearest', behavior: 'instant' })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusedIdx, filtered])
 
-  // Keyboard navigation
-  const stateRef = useRef({ filtered, focusedIdx, filters, sort })
-  stateRef.current = { filtered, focusedIdx, filters, sort }
+  // Keyboard navigation — stateRef captures visualOrder so the closure always
+  // sees the current array without needing to be re-registered.
+  const stateRef = useRef({ visualOrder, focusedIdx, filters, sort })
+  stateRef.current = { visualOrder, focusedIdx, filters, sort }
   const lastNavTime = useRef(0)
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (isEditableTarget(e)) return
-      const { filtered, focusedIdx, filters, sort } = stateRef.current
-      if (!filtered.length) return
+      const { visualOrder, focusedIdx, filters, sort } = stateRef.current
+      if (!visualOrder.length) return
 
       if (e.key === 'ArrowRight') {
         e.preventDefault()
         const now = Date.now()
         if (e.repeat && now - lastNavTime.current < 180) return
         lastNavTime.current = now
-        setFocusedIdx((i) => Math.min(i + 1, filtered.length - 1))
+        setFocusedIdx((i) => Math.min(i + 1, visualOrder.length - 1))
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault()
         const now = Date.now()
@@ -219,16 +285,16 @@ export default function IndexMode() {
         const now = Date.now()
         if (e.repeat && now - lastNavTime.current < 180) return
         lastNavTime.current = now
-        setFocusedIdx(getVisualNavIndex('down', focusedIdx, filtered))
+        setFocusedIdx(getVisualNavIndex('down', focusedIdx, visualOrder))
       } else if (e.key === 'ArrowUp') {
         e.preventDefault()
         const now = Date.now()
         if (e.repeat && now - lastNavTime.current < 180) return
         lastNavTime.current = now
-        setFocusedIdx(getVisualNavIndex('up', focusedIdx, filtered))
+        setFocusedIdx(getVisualNavIndex('up', focusedIdx, visualOrder))
       } else if (e.key === 'Enter') {
         e.preventDefault()
-        const concept = filtered[focusedIdx]
+        const concept = visualOrder[focusedIdx]
         if (concept) {
           sessionStorage.setItem(STATE_KEY, JSON.stringify({ filters, sort }))
           const el = getMain()
@@ -240,10 +306,10 @@ export default function IndexMode() {
         e.preventDefault()
         setPanelOpen((p) => !p)
       } else if (e.key === '+' || e.key === '=') {
-        const concept = filtered[focusedIdx]
+        const concept = visualOrder[focusedIdx]
         if (concept) incrementMut.mutate(concept.id)
       } else if (e.key === '-') {
-        const concept = filtered[focusedIdx]
+        const concept = visualOrder[focusedIdx]
         if (concept) decrementMut.mutate(concept.id)
       }
     }
@@ -259,17 +325,15 @@ export default function IndexMode() {
     sessionStorage.setItem(LAST_ID_KEY, id)
   }
 
-  function handlePillClick(e: React.MouseEvent, c: Concept, globalIdx: number) {
-    if (focusedIdx === globalIdx) {
+  function handlePillClick(e: React.MouseEvent, c: Concept, visualIdx: number) {
+    if (focusedIdx === visualIdx) {
       saveNavState(c.id)
       router.push(`/app/concepts/${c.id}`)
     } else {
       e.preventDefault()
-      setFocusedIdx(globalIdx)
+      setFocusedIdx(visualIdx)
     }
   }
-
-  const groups = groupByLetter(filtered)
 
   return (
     <div className="max-w-5xl mx-auto px-4 md:px-8 py-10 pb-44">
@@ -315,13 +379,13 @@ export default function IndexMode() {
                 <div className="flex-1 border-t border-gray-100" />
               </div>
 
-              {items.map(({ concept: c, globalIdx }) => {
-                const isFocused = globalIdx === focusedIdx
+              {items.map(({ concept: c, visualIdx }) => {
+                const isFocused = visualIdx === focusedIdx
                 return (
                   <div
                     key={c.id}
                     id={`idx-${c.id}`}
-                    onClick={(e) => handlePillClick(e, c, globalIdx)}
+                    onClick={(e) => handlePillClick(e, c, visualIdx)}
                     className={`group flex items-baseline gap-1.5 px-2 py-[5px] rounded select-none transition-colors ${
                       isFocused
                         ? 'bg-blue-50 cursor-pointer'
@@ -331,12 +395,17 @@ export default function IndexMode() {
                     {c.pinned && (
                       <PinIcon
                         size={8}
-                        className={`flex-shrink-0 self-center -mt-px ${isFocused ? 'text-amber-400' : 'text-amber-300'}`}
+                        className={`flex-shrink-0 ${isFocused ? 'self-start mt-[3px] text-amber-400' : 'self-center -mt-px text-amber-300'}`}
                       />
                     )}
-                    <span className={`text-sm leading-snug truncate min-w-0 transition-colors ${
-                      isFocused ? 'text-blue-700 font-medium' : 'text-gray-700'
-                    }`}>
+                    <span
+                      className={`text-sm leading-snug min-w-0 transition-colors ${
+                        isFocused
+                          ? 'text-blue-700 font-medium line-clamp-3 break-words'
+                          : 'truncate text-gray-700'
+                      }`}
+                      title={isFocused ? undefined : c.name}
+                    >
                       {c.name}
                     </span>
                     {(c.reviewCount !== undefined && c.reviewCount !== null) && (
@@ -354,45 +423,13 @@ export default function IndexMode() {
         </div>
       )}
 
-      {/* MVK Drawer */}
-      <div className={`fixed bottom-0 right-0 z-20 bg-gray-900 transition-all duration-200 max-md:left-0 ${collapsed ? 'md:left-16' : 'md:left-60'}`}>
-        {panelOpen && (
-          <div className="bg-white border-t border-gray-200 shadow-[0_-4px_24px_rgba(0,0,0,0.07)]">
-            {focusedConcept && (
-              <InlineEditor
-                key={focusedConcept.id}
-                content={focusedConcept.mvkNotes ?? ''}
-                placeholder={MVK_PLACEHOLDER}
-                hint={MVK_EXAMPLE_HINT}
-                editPlaceholder={MVK_EDIT_PLACEHOLDER}
-                onSave={(value) => updateContentMut.mutate({ id: focusedConcept.id, field: 'mvkNotes', value })}
-              />
-            )}
-          </div>
-        )}
-        <button
-          onClick={() => setPanelOpen((p) => !p)}
-          className="w-full flex items-center justify-between px-6 py-2.5 bg-gray-900 hover:bg-gray-800 transition-colors group outline-none focus:outline-none"
-        >
-          <div className="flex items-baseline gap-2">
-            <span className="text-[11px] font-semibold text-gray-300 uppercase tracking-widest">MVK</span>
-            <span className="text-[10px] text-gray-600 group-hover:text-gray-500 transition-colors hidden sm:inline">
-              Minimum Viable Knowledge
-            </span>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded border border-gray-700 text-[10px] text-gray-600 group-hover:text-gray-400 group-hover:border-gray-600 transition-colors font-mono leading-none select-none">
-              Space
-            </kbd>
-            <svg
-              className={`w-3.5 h-3.5 text-gray-500 group-hover:text-gray-300 transition-all duration-200 ${panelOpen ? 'rotate-180' : ''}`}
-              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
-            </svg>
-          </div>
-        </button>
-      </div>
+      <MvkDrawer
+        collapsed={collapsed}
+        panelOpen={panelOpen}
+        onTogglePanelOpen={() => setPanelOpen((p) => !p)}
+        focusedConcept={focusedConcept}
+        onSave={(value) => { if (focusedConcept) updateContentMut.mutate({ id: focusedConcept.id, field: 'mvkNotes', value }) }}
+      />
     </div>
   )
 }

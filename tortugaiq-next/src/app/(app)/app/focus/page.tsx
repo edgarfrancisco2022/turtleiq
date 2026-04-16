@@ -1,15 +1,21 @@
 'use client'
 
-import { useState, useMemo, useEffect, useRef, Suspense } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useConcepts, useUpdateConceptField, useUpdateConceptContent, useIncrementReview, useDecrementReview } from '@/hooks/useConcepts'
 import { useSubjects, useTopics, useTags } from '@/hooks/useSubjects'
 import { useFilterSort } from '@/hooks/useFilterSort'
+import { useViewStateRegistry } from '@/components/providers/ViewStateRegistryProvider'
 import FilterSortBar from '@/components/ui/FilterSortBar'
 import ShortcutsHintBar from '@/components/ui/ShortcutsHintBar'
 import { StateSelector, PriorityBadge, ReviewCounter, PinButton, PinIcon } from '@/components/ui/StatusBadge'
 import MarkdownEditor, { MVK_PLACEHOLDER, MVK_EXAMPLE_HINT, MVK_EDIT_PLACEHOLDER } from '@/components/ui/MarkdownEditor'
+import type { FilterState } from '@/hooks/useFilterSort'
+
+const SCROLL_KEY = 'scroll-focus'
+const STATE_KEY  = 'focus-view-state'
+const getMain = () => document.getElementById('main-content')
 
 function isEditableTarget(e: KeyboardEvent) {
   const t = e.target as HTMLElement
@@ -17,7 +23,7 @@ function isEditableTarget(e: KeyboardEvent) {
 }
 
 // useSearchParams() requires a Suspense boundary in Next.js App Router.
-// The default export wraps FocusModeInner in Suspense.
+// The default export wraps FocusMode in Suspense.
 export default function FocusModePage() {
   return (
     <Suspense fallback={<div className="flex items-center justify-center h-full"><p className="text-gray-400 text-sm">Loading…</p></div>}>
@@ -39,42 +45,118 @@ function FocusMode() {
   const incrementMut = useIncrementReview()
   const decrementMut = useDecrementReview()
 
-  const { filtered, filters, sort, setFilter, setSort, clearFilters, hasActiveFilters } =
-    useFilterSort(allConcepts)
+  const { registerViewStateSaver } = useViewStateRegistry()
+
+  // Restore filter/sort state if returning from ConceptView (read before first render)
+  const [savedState] = useState<{ filters: FilterState; sort: string } | null>(() => {
+    if (typeof window === 'undefined') return null
+    if (!sessionStorage.getItem('cv-back')) return null
+    try { return JSON.parse(sessionStorage.getItem(STATE_KEY) || 'null') } catch { return null }
+  })
+
+  const { filtered, filters, sort, setFilter, setSort: setSortRaw, clearFilters, hasActiveFilters } =
+    useFilterSort(allConcepts, { initialFilters: savedState?.filters, initialSort: savedState?.sort })
 
   // Only one section active at a time: null | 'mvk' | 'notes' | 'references'
   const [activeSection, setActiveSection] = useState<'mvk' | 'notes' | 'references' | null>(null)
 
-  const currentId = searchParams.get('id')
-  const currentIndex = useMemo(() => {
-    if (!currentId) return 0
-    const idx = filtered.findIndex((c) => c.id === currentId)
-    return idx >= 0 ? idx : 0
-  }, [filtered, currentId])
+  // currentIndex is local state — the authoritative position in the filtered list.
+  // Using local state (instead of deriving from the URL param) means setSort() and
+  // setCurrentIndex(0) are batched in one React render, so there is no flash of a
+  // wrong position number when the sort option changes.
+  const [currentIndex, setCurrentIndex] = useState(0)
 
-  const concept = filtered[currentIndex] ?? null
+  // On first data load, restore position from the URL ?id= param (back-navigation only).
+  // On a fresh page load / refresh, ignore the param and reset to index 0.
+  const currentId = searchParams.get('id')
+  const initializedFromUrlRef = useRef(false)
+  useEffect(() => {
+    if (!initializedFromUrlRef.current && filtered.length > 0) {
+      initializedFromUrlRef.current = true
+      const isBackNav = typeof window !== 'undefined' && !!sessionStorage.getItem('cv-back')
+      if (isBackNav && currentId) {
+        const idx = filtered.findIndex((c) => c.id === currentId)
+        if (idx > 0) setCurrentIndex(idx)
+      } else if (currentId) {
+        // Fresh load — strip the stale ?id= param so the URL matches index 0
+        router.replace('/app/focus')
+      }
+    }
+  }, [filtered, currentId, router])
+
+  // Clamp to a valid index when the filtered list shrinks (e.g. after adding a filter).
+  const safeIndex = filtered.length === 0 ? 0 : Math.min(currentIndex, filtered.length - 1)
+
+  const concept = filtered[safeIndex] ?? null
   const conceptSubjects = concept ? subjects.filter((s) => concept.subjectIds.includes(s.id)) : []
+
+  // Registry ref: inline assignment keeps closure fresh every render.
+  const saveStateForRegistryRef = useRef<() => void>(() => {})
+  saveStateForRegistryRef.current = () => {
+    sessionStorage.setItem(STATE_KEY, JSON.stringify({ filters, sort }))
+    const el = getMain()
+    if (el) sessionStorage.setItem(SCROLL_KEY, String(el.scrollTop))
+  }
+
+  useEffect(() => {
+    return registerViewStateSaver(() => saveStateForRegistryRef.current())
+  }, [registerViewStateSaver])
+
+  // Scroll to top on mount; restore scroll if returning from ConceptView
+  useEffect(() => {
+    const el = getMain()
+    if (el) el.scrollTop = 0
+
+    if (sessionStorage.getItem('cv-back')) {
+      sessionStorage.removeItem('cv-back')
+      sessionStorage.removeItem(STATE_KEY)
+      const saved = sessionStorage.getItem(SCROLL_KEY)
+      sessionStorage.removeItem(SCROLL_KEY)
+      if (saved) {
+        const pos = parseInt(saved, 10)
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            const el2 = getMain()
+            if (el2) el2.scrollTop = pos
+          })
+        })
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function goTo(idx: number) {
     const c = filtered[idx]
     if (!c) return
     setActiveSection(null)
+    setCurrentIndex(idx)
     const params = new URLSearchParams({ id: c.id })
     router.replace(`/app/focus?${params.toString()}`)
+  }
+
+  // Changing sort resets position to the first element of the newly sorted list.
+  // setSortRaw + setCurrentIndex(0) are batched together by React 18 — single render,
+  // no intermediate flash of a wrong position number.
+  function setSort(newSort: string) {
+    setSortRaw(newSort)
+    setCurrentIndex(0)
   }
 
   function toggleSection(section: 'mvk' | 'notes' | 'references') {
     setActiveSection((prev) => (prev === section ? null : section))
   }
 
-  // Keyboard navigation: ←/→ for prev/next, +/- for review counter
-  const stateRef = useRef({ filtered, currentIndex })
-  stateRef.current = { filtered, currentIndex }
+  // stateRef is updated every render so the keyboard handler (registered once) always
+  // reads current values. Crucially, goTo is included here — if it were captured only
+  // at mount time it would close over the initial (possibly empty or partial) filtered
+  // list, causing arrow-key navigation to stop working after data loads or sort changes.
+  const stateRef = useRef({ filtered, currentIndex: safeIndex, filters, sort, goTo })
+  stateRef.current = { filtered, currentIndex: safeIndex, filters, sort, goTo }
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (isEditableTarget(e)) return
-      const { filtered, currentIndex } = stateRef.current
+      const { filtered, currentIndex, filters, sort, goTo } = stateRef.current
       if (!filtered.length) return
 
       if (e.key === 'ArrowLeft') {
@@ -86,7 +168,12 @@ function FocusMode() {
       } else if (e.key === 'Enter') {
         e.preventDefault()
         const c = filtered[currentIndex]
-        if (c) router.push(`/app/concepts/${c.id}`)
+        if (c) {
+          sessionStorage.setItem(STATE_KEY, JSON.stringify({ filters, sort }))
+          const el = getMain()
+          if (el) sessionStorage.setItem(SCROLL_KEY, String(el.scrollTop))
+          router.push(`/app/concepts/${c.id}`)
+        }
       } else if (e.key === '+' || e.key === '=') {
         const c = filtered[currentIndex]
         if (c) incrementMut.mutate(c.id)
@@ -99,6 +186,12 @@ function FocusMode() {
     return () => document.removeEventListener('keydown', onKey)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  function saveState() {
+    sessionStorage.setItem(STATE_KEY, JSON.stringify({ filters, sort }))
+    const el = getMain()
+    if (el) sessionStorage.setItem(SCROLL_KEY, String(el.scrollTop))
+  }
 
   return (
     <div className="max-w-3xl mx-auto px-4 md:px-8 py-10">
@@ -135,18 +228,18 @@ function FocusMode() {
           {/* Navigation */}
           <div className="flex items-center justify-between mb-6">
             <button
-              onClick={() => goTo(currentIndex - 1)}
-              disabled={currentIndex === 0}
+              onClick={() => goTo(safeIndex - 1)}
+              disabled={safeIndex === 0}
               className="flex items-center gap-1 text-sm text-gray-500 hover:text-blue-600 disabled:opacity-30 disabled:pointer-events-none transition-colors"
             >
               ← Prev
             </button>
             <span className="text-sm text-gray-400">
-              {currentIndex + 1} / {filtered.length}
+              {safeIndex + 1} / {filtered.length}
             </span>
             <button
-              onClick={() => goTo(currentIndex + 1)}
-              disabled={currentIndex === filtered.length - 1}
+              onClick={() => goTo(safeIndex + 1)}
+              disabled={safeIndex === filtered.length - 1}
               className="flex items-center gap-1 text-sm text-gray-500 hover:text-blue-600 disabled:opacity-30 disabled:pointer-events-none transition-colors"
             >
               Next →
@@ -163,6 +256,7 @@ function FocusMode() {
                 </h2>
                 <Link
                   href={`/app/concepts/${concept.id}`}
+                  onClick={saveState}
                   className="text-xs text-gray-400 hover:text-blue-600 ml-4 flex-shrink-0 mt-1"
                   title="Open full concept page"
                 >

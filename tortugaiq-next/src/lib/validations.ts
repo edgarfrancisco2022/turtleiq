@@ -83,6 +83,13 @@ export const addStudySessionSchema = z.object({
 
 export type AddStudySessionInput = z.infer<typeof addStudySessionSchema>
 
+export const updateStudySessionSchema = z.object({
+  minutes: z.number().int().positive().max(1440),
+  subjectId: z.string().nullable().optional(),
+})
+
+export type UpdateStudySessionInput = z.infer<typeof updateStudySessionSchema>
+
 // ---------------------------------------------------------------------------
 // Subjects
 // ---------------------------------------------------------------------------

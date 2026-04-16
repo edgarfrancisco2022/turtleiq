@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { PinIcon } from './StatusBadge'
 import type { ConceptState, ConceptPriority, Subject, Topic, Tag } from '@/lib/types'
 
@@ -210,11 +210,17 @@ export default function FilterSortBar({
   const ss = [...subjects].sort((a, b) => a.name.localeCompare(b.name))
   const st = [...topics].sort((a, b) => a.name.localeCompare(b.name))
   const sg = [...tags].sort((a, b) => a.name.localeCompare(b.name))
+  const sortSelectRef = useRef<HTMLSelectElement>(null)
 
   function toggle(key: keyof FilterState, value: string) {
     const cur = (filters[key] as string[]) || []
     setFilter(key, cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value])
   }
+
+  const handleSortChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSort(e.target.value)
+    sortSelectRef.current?.blur()
+  }, [setSort])
 
   return (
     <div className="flex flex-wrap gap-1.5 items-center py-2.5 border-b border-gray-100 mb-4">
@@ -223,8 +229,9 @@ export default function FilterSortBar({
       </label>
       <select
         id="filter-sort-select"
+        ref={sortSelectRef}
         value={sort}
-        onChange={(e) => setSort(e.target.value)}
+        onChange={handleSortChange}
         aria-label="Sort concepts"
         className={SEL}
       >

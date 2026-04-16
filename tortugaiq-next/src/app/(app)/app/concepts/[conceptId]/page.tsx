@@ -45,6 +45,7 @@ export default function ConceptView() {
       if (e.key === 'Backspace') {
         e.preventDefault()
         requestNavigation(() => {
+          ;(window as any).__cvBackPending = true
           sessionStorage.setItem('cv-back', '1')
           router.back()
         })
@@ -73,6 +74,7 @@ export default function ConceptView() {
 
   function handleBack() {
     requestNavigation(() => {
+      ;(window as any).__cvBackPending = true
       sessionStorage.setItem('cv-back', '1')
       router.back()
     })

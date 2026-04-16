@@ -14,6 +14,10 @@
   --font-mono: var(--font-geist-mono);
 }
 
+@theme {
+  --breakpoint-xs: 400px;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
@@ -55,4 +59,20 @@ body {
 
 input[type="search"]::-webkit-search-cancel-button {
   cursor: pointer;
+}
+
+/* Nested list marker cycling within prose (disc → circle → square) */
+.prose ul > li > ul {
+  list-style-type: circle !important;
+}
+.prose ul > li > ul > li > ul {
+  list-style-type: square !important;
+}
+
+/* Nested ordered list numbering cycling within prose (1. → a. → i.) */
+.prose ol > li > ol {
+  list-style-type: lower-alpha !important;
+}
+.prose ol > li > ol > li > ol {
+  list-style-type: lower-roman !important;
 }

@@ -6,6 +6,7 @@ import StudySessionBar from '@/components/ui/StudySessionBar'
 import { ConceptFormProvider, useConceptForm } from '@/components/providers/ConceptFormProvider'
 import { DirtyStateProvider, useDirtyState } from '@/components/providers/DirtyStateProvider'
 import { SidebarStateContext } from '@/components/providers/SidebarStateProvider'
+import { ViewStateRegistryProvider } from '@/components/providers/ViewStateRegistryProvider'
 
 function AppShellInner({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false)
@@ -52,9 +53,11 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <DirtyStateProvider>
-      <ConceptFormProvider>
-        <AppShellInner>{children}</AppShellInner>
-      </ConceptFormProvider>
+      <ViewStateRegistryProvider>
+        <ConceptFormProvider>
+          <AppShellInner>{children}</AppShellInner>
+        </ConceptFormProvider>
+      </ViewStateRegistryProvider>
     </DirtyStateProvider>
   )
 }

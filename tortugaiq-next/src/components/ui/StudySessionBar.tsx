@@ -142,9 +142,11 @@ export default function StudySessionBar({ collapsed, onMobileOpen }: Props) {
           id="bar-study-subject"
           value={selectedSubject}
           onChange={(e) => setSelectedSubject(e.target.value)}
-          className="text-xs border border-gray-200 rounded-md px-2 py-1 text-gray-600 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer max-w-[140px]"
+          className={`text-xs border border-gray-200 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer max-w-[140px] transition-colors ${
+            selectedSubject === '' ? 'text-gray-400' : 'text-gray-600'
+          }`}
         >
-          <option value="">Mixed</option>
+          <option value="">Unassigned</option>
           {sorted.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
@@ -165,7 +167,11 @@ export default function StudySessionBar({ collapsed, onMobileOpen }: Props) {
           }`}
         >
           <span>+</span>
-          <span>Log{selectedTimes.size > 0 ? ` ${formatTime(selectedTotal)}` : ' Time'}</span>
+          <span>
+            {selectedTimes.size > 0
+              ? `Log ${formatTime(selectedTotal)} · ${selectedSubject === '' ? 'Unassigned' : (sorted.find((s) => s.id === selectedSubject)?.name ?? 'Unassigned')}`
+              : 'Log Time'}
+          </span>
         </button>
       </div>
     </div>

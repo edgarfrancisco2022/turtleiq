@@ -187,6 +187,7 @@ export default function CreatableMultiSelect({
             setIsOpen(true)
           }}
           onFocus={open}
+          onBlur={() => setIsOpen(false)}
           onKeyDown={handleKeyDown}
           placeholder={selected.length === 0 ? placeholder : ''}
           className="flex-1 min-w-[100px] text-sm outline-none bg-transparent py-0.5 text-gray-800 placeholder:text-gray-400"

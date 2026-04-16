@@ -85,40 +85,42 @@ export default function InlineEditor({
 
   if (!isEditing) {
     return (
-      <div className="bg-white overflow-hidden">
-        <div className="flex justify-end px-4 py-2 border-b border-gray-100 bg-gray-50">
+      <div className="bg-white overflow-hidden flex flex-col h-full">
+        <div className="relative flex-1 min-h-0">
+          {/* Floating Edit button */}
           <button
             onClick={startEdit}
-            className="text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
+            className="absolute top-2.5 right-3 z-10 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-md px-2.5 py-1 text-xs font-medium text-blue-600 shadow-sm hover:shadow hover:border-blue-300 hover:text-blue-700 transition-all duration-150"
           >
             Edit
           </button>
-        </div>
-        <div className="px-4 py-3 max-h-32 overflow-y-auto overscroll-none">
-          {content ? (
-            <div className="prose prose-xs prose-neutral max-w-none text-sm">
-              <ReactMarkdown
-                remarkPlugins={MD_PLUGINS.remark}
-                rehypePlugins={MD_PLUGINS.rehype}
-              >
-                {content}
-              </ReactMarkdown>
-            </div>
-          ) : (
-            <div>
-              <p className="text-xs text-gray-400 italic m-0">
-                {placeholder || 'No MVK notes. Click Edit to add.'}
-              </p>
-              {hint}
-            </div>
-          )}
+          {/* Scrollable content */}
+          <div className="px-4 pt-3 pb-3 overflow-y-auto overscroll-none h-full">
+            {content ? (
+              <div className="prose prose-xs prose-neutral max-w-none text-sm">
+                <ReactMarkdown
+                  remarkPlugins={MD_PLUGINS.remark}
+                  rehypePlugins={MD_PLUGINS.rehype}
+                >
+                  {content}
+                </ReactMarkdown>
+              </div>
+            ) : (
+              <div>
+                <p className="text-xs text-gray-400 italic m-0">
+                  {placeholder || 'No MVK notes. Click Edit to add.'}
+                </p>
+                {hint}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="bg-white overflow-hidden">
+    <div className="bg-white overflow-hidden flex flex-col h-full">
       <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 bg-gray-50">
         <div className="flex gap-1">
           {(['code', 'preview'] as const).map((mode) => (
@@ -164,13 +166,13 @@ export default function InlineEditor({
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={handleKeyDown}
-          className="w-full px-4 py-3 text-sm font-mono text-gray-800 focus:outline-none resize-none leading-relaxed max-h-32 overflow-y-auto overscroll-none"
+          className="w-full px-4 py-3 text-sm font-mono text-gray-800 focus:outline-none resize-none leading-relaxed overflow-y-auto overscroll-none flex-1 min-h-0"
           rows={4}
           placeholder={editPlaceholder ?? placeholder}
           autoFocus
         />
       ) : (
-        <div className="px-4 py-3 max-h-32 overflow-y-auto overscroll-none prose prose-xs prose-neutral max-w-none text-sm">
+        <div className="px-4 py-3 overflow-y-auto overscroll-none flex-1 min-h-0 prose prose-xs prose-neutral max-w-none text-sm">
           {draft ? (
             <ReactMarkdown
               remarkPlugins={MD_PLUGINS.remark}

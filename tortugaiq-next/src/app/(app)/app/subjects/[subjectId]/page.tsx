@@ -6,11 +6,11 @@ import Link from 'next/link'
 import { useConcepts, useUpdateConceptField, useUpdateConceptContent, useIncrementReview, useDecrementReview, useDeleteConcept } from '@/hooks/useConcepts'
 import { useSubjects, useTopics, useTags, useSubjectSortMode, useSetSubjectSortMode, useSubjectConceptOrder, useMoveConceptInSubject } from '@/hooks/useSubjects'
 import { useSidebarState } from '@/components/providers/SidebarStateProvider'
+import { useViewStateRegistry } from '@/components/providers/ViewStateRegistryProvider'
 import FilterSortBar from '@/components/ui/FilterSortBar'
 import ShortcutsHintBar from '@/components/ui/ShortcutsHintBar'
 import { StateSelector, PriorityBadge, ReviewCounter, PinButton, PinIcon } from '@/components/ui/StatusBadge'
-import InlineEditor from '@/components/ui/InlineEditor'
-import { MVK_PLACEHOLDER, MVK_EXAMPLE_HINT, MVK_EDIT_PLACEHOLDER } from '@/components/ui/MarkdownEditor'
+import MvkDrawer from '@/components/ui/MvkDrawer'
 import DeleteConceptDialog from '@/components/ui/DeleteConceptDialog'
 import type { FilterState } from '@/hooks/useFilterSort'
 import type { Concept, ConceptState, ConceptPriority } from '@/lib/types'
@@ -32,6 +32,7 @@ export default function SubjectView() {
   const { subjectId } = useParams<{ subjectId: string }>()
   const router = useRouter()
   const { collapsed } = useSidebarState()
+  const { registerViewStateSaver } = useViewStateRegistry()
 
   const { data: allConcepts = [] } = useConcepts()
   const { data: subjects = [] } = useSubjects()
@@ -70,6 +71,20 @@ export default function SubjectView() {
     filters.topics?.length || filters.tags?.length || filters.states?.length ||
     filters.priorities?.length || filters.pinned
   )
+
+  // Registry ref: inline assignment keeps closure fresh every render.
+  const saveStateForRegistryRef = useRef<() => void>(() => {})
+  saveStateForRegistryRef.current = () => {
+    sessionStorage.setItem(STATE_KEY(subjectId), JSON.stringify({ filters }))
+    const el = getMain()
+    if (el) sessionStorage.setItem(SCROLL_KEY(subjectId), String(el.scrollTop))
+    const id = displayed[focusedIdx]?.id
+    if (id) sessionStorage.setItem(LAST_ID_KEY(subjectId), id)
+  }
+
+  useEffect(() => {
+    return registerViewStateSaver(() => saveStateForRegistryRef.current())
+  }, [registerViewStateSaver])
 
   const suppressScroll = useRef(false)
 
@@ -291,45 +306,13 @@ export default function SubjectView() {
         </div>
       )}
 
-      {/* MVK Drawer */}
-      <div className={`fixed bottom-0 right-0 z-20 bg-gray-900 transition-all duration-200 max-md:left-0 ${collapsed ? 'md:left-16' : 'md:left-60'}`}>
-        {panelOpen && (
-          <div className="bg-white border-t border-gray-200 shadow-[0_-4px_24px_rgba(0,0,0,0.07)]">
-            {focusedConcept && (
-              <InlineEditor
-                key={focusedConcept.id}
-                content={focusedConcept.mvkNotes ?? ''}
-                placeholder={MVK_PLACEHOLDER}
-                hint={MVK_EXAMPLE_HINT}
-                editPlaceholder={MVK_EDIT_PLACEHOLDER}
-                onSave={(value) => updateContentMut.mutate({ id: focusedConcept.id, field: 'mvkNotes', value })}
-              />
-            )}
-          </div>
-        )}
-        <button
-          onClick={() => setPanelOpen((p) => !p)}
-          className="w-full flex items-center justify-between px-6 py-2.5 bg-gray-900 hover:bg-gray-800 transition-colors group outline-none focus:outline-none"
-        >
-          <div className="flex items-baseline gap-2">
-            <span className="text-[11px] font-semibold text-gray-300 uppercase tracking-widest">MVK</span>
-            <span className="text-[10px] text-gray-600 group-hover:text-gray-500 transition-colors hidden sm:inline">
-              Minimum Viable Knowledge
-            </span>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded border border-gray-700 text-[10px] text-gray-600 group-hover:text-gray-400 group-hover:border-gray-600 transition-colors font-mono leading-none select-none">
-              Space
-            </kbd>
-            <svg
-              className={`w-3.5 h-3.5 text-gray-500 group-hover:text-gray-300 transition-all duration-200 ${panelOpen ? 'rotate-180' : ''}`}
-              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
-            </svg>
-          </div>
-        </button>
-      </div>
+      <MvkDrawer
+        collapsed={collapsed}
+        panelOpen={panelOpen}
+        onTogglePanelOpen={() => setPanelOpen((p) => !p)}
+        focusedConcept={focusedConcept}
+        onSave={(value) => { if (focusedConcept) updateContentMut.mutate({ id: focusedConcept.id, field: 'mvkNotes', value }) }}
+      />
 
       {deleteTarget && (
         <DeleteConceptDialog

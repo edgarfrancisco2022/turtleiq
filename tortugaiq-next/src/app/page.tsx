@@ -18,17 +18,17 @@ export default function LandingPage() {
     <div className="min-h-screen bg-white text-gray-900">
       {/* Top nav */}
       <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-3 xs:px-6 h-14 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <span className="text-xl leading-none">🔍🐢</span>
-            <span className="hidden xs:inline font-bold text-gray-900 text-sm tracking-tight">TortugaIQ</span>
+            <span className="font-bold text-gray-900 text-sm tracking-tight">TortugaIQ</span>
           </Link>
-          <div className="flex items-center gap-3 xs:gap-5">
+          <div className="flex items-center gap-5">
             <Link href="/notes" className="text-sm text-gray-500 hover:text-gray-800 transition-colors">Notes</Link>
             <Link href="/sign-in" className="text-sm text-gray-500 hover:text-gray-800 transition-colors">Sign in</Link>
             <Link
               href="/sign-up"
-              className="text-sm bg-gray-900 text-white px-3 xs:px-4 py-1.5 rounded-lg hover:bg-gray-700 transition-colors font-medium"
+              className="text-sm bg-gray-900 text-white px-4 py-1.5 rounded-lg hover:bg-gray-700 transition-colors font-medium"
             >
               Sign up
             </Link>

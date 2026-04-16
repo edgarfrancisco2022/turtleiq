@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { useStudySessions, useDeleteStudySession } from '@/hooks/useStudySessions'
+import { useStudySessions, useDeleteStudySession, useUpdateStudySession } from '@/hooks/useStudySessions'
 import { useSubjects } from '@/hooks/useSubjects'
 import DeleteSessionDialog from '@/components/ui/DeleteSessionDialog'
+import EditSessionModal from '@/components/ui/EditSessionModal'
 import type { StudySession } from '@/lib/types'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -30,7 +31,7 @@ function formatTotalTime(minutes: number): string {
   return m === 0 ? `${h}h` : `${h}h ${m}m`
 }
 
-// ── Trash icon ────────────────────────────────────────────────────────────────
+// ── Icons ─────────────────────────────────────────────────────────────────────
 
 const TrashIcon = () => (
   <svg viewBox="0 0 18 18" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -43,6 +44,12 @@ const TrashIcon = () => (
   </svg>
 )
 
+const PencilIcon = () => (
+  <svg viewBox="0 0 18 18" fill="none" className="w-4 h-4" style={{ transform: 'translateY(2px)' }} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M13 2l3 3-9 9H4v-3L13 2z" />
+  </svg>
+)
+
 type SortMode = 'date_new' | 'date_old' | 'duration_high' | 'duration_low'
 
 // ── Page ─────────────────────────────────────────────────────────────────────
@@ -51,10 +58,12 @@ export default function SessionsPage() {
   const { data: sessions = [] } = useStudySessions()
   const { data: subjects = [] } = useSubjects()
   const deleteMut = useDeleteStudySession()
+  const updateMut = useUpdateStudySession()
 
   const [sort, setSort] = useState<SortMode>('date_new')
   const [filterSubject, setFilterSubject] = useState<string>('') // subjectId or '' for all
   const [deleteTarget, setDeleteTarget] = useState<StudySession | null>(null)
+  const [editTarget, setEditTarget] = useState<StudySession | null>(null)
 
   const subjectMap = useMemo(
     () => new Map(subjects.map((s) => [s.id, s.name])),
@@ -84,7 +93,7 @@ export default function SessionsPage() {
   }, [sessions, subjects])
 
   function getDeleteLabel(session: StudySession): string {
-    const subjectName = session.subjectId ? (subjectMap.get(session.subjectId) ?? 'Unknown') : 'Mixed'
+    const subjectName = session.subjectId ? (subjectMap.get(session.subjectId) ?? 'Unknown') : 'Unassigned'
     return `${subjectName} · ${formatDuration(session.minutes)}`
   }
 
@@ -154,7 +163,7 @@ export default function SessionsPage() {
             return (
               <div
                 key={session.id}
-                className="border border-gray-200 rounded-md bg-white hover:bg-gray-50 hover:border-gray-300 transition-all px-4 py-3 flex items-center gap-3"
+                className="group border border-gray-200 rounded-md bg-white hover:bg-gray-50 hover:border-gray-300 transition-all px-4 py-3 flex items-center gap-3"
               >
                 {/* Subject badge */}
                 {subjectName ? (
@@ -163,7 +172,7 @@ export default function SessionsPage() {
                   </span>
                 ) : (
                   <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium flex-shrink-0">
-                    Mixed
+                    Unassigned
                   </span>
                 )}
 
@@ -181,10 +190,20 @@ export default function SessionsPage() {
 
                 <div className="flex-1" />
 
+                {/* Edit button */}
+                <button
+                  onClick={() => setEditTarget(session)}
+                  className="flex items-center justify-center text-gray-300 hover:text-gray-600 transition-colors p-1 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1"
+                  aria-label="Edit session"
+                  title="Edit session"
+                >
+                  <PencilIcon />
+                </button>
+
                 {/* Delete button */}
                 <button
                   onClick={() => setDeleteTarget(session)}
-                  className="text-gray-300 hover:text-red-500 transition-colors p-1 rounded focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-1"
+                  className="flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors p-1 rounded focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-1"
                   aria-label="Remove session"
                   title="Remove session"
                 >
@@ -211,6 +230,19 @@ export default function SessionsPage() {
             setDeleteTarget(null)
           }}
           onCancel={() => setDeleteTarget(null)}
+        />
+      )}
+
+      {/* Edit session */}
+      {editTarget && (
+        <EditSessionModal
+          session={editTarget}
+          subjects={subjects}
+          onSave={({ minutes, subjectId }) => {
+            updateMut.mutate({ id: editTarget.id, minutes, subjectId })
+            setEditTarget(null)
+          }}
+          onCancel={() => setEditTarget(null)}
         />
       )}
     </div>
