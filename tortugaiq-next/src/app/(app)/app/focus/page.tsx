@@ -65,6 +65,7 @@ function FocusMode() {
   // setCurrentIndex(0) are batched in one React render, so there is no flash of a
   // wrong position number when the sort option changes.
   const [currentIndex, setCurrentIndex] = useState(0)
+  const backRestoring = useRef(false)
 
   // On first data load, restore position from the URL ?id= param (back-navigation only).
   // On a fresh page load / refresh, ignore the param and reset to index 0.
@@ -76,13 +77,25 @@ function FocusMode() {
       const isBackNav = typeof window !== 'undefined' && !!sessionStorage.getItem('cv-back')
       if (isBackNav && currentId) {
         const idx = filtered.findIndex((c) => c.id === currentId)
-        if (idx > 0) setCurrentIndex(idx)
+        if (idx > 0) {
+          backRestoring.current = true
+          setCurrentIndex(idx)
+        }
       } else if (currentId) {
         // Fresh load — strip the stale ?id= param so the URL matches index 0
         router.replace('/app/focus')
       }
     }
   }, [filtered, currentId, router])
+
+  // Reset to first element whenever the filtered list changes (filter or sort change).
+  // Skips on initial render and back-navigation restoration.
+  const isFirstRenderFilter = useRef(true)
+  useEffect(() => {
+    if (isFirstRenderFilter.current) { isFirstRenderFilter.current = false; return }
+    if (backRestoring.current) { backRestoring.current = false; return }
+    setCurrentIndex(0)
+  }, [filtered])
 
   // Clamp to a valid index when the filtered list shrinks (e.g. after adding a filter).
   const safeIndex = filtered.length === 0 ? 0 : Math.min(currentIndex, filtered.length - 1)

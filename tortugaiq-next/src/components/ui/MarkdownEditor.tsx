@@ -8,8 +8,39 @@ import rehypeKatex from 'rehype-katex'
 import MarkdownHelpPanel from './MarkdownHelpPanel'
 import { useDirtyState } from '@/components/providers/DirtyStateProvider'
 
+// Custom remark plugin: transforms ==text== into <mark>text</mark> via HAST hName
+function remarkMark() {
+  return (tree: any) => {
+    function processNode(node: any) {
+      if (!node.children) return
+      const newChildren: any[] = []
+      for (const child of node.children) {
+        if (child.type === 'text' && child.value.includes('==')) {
+          const parts = child.value.split(/(==[^=\n]+?==)/)
+          for (const part of parts) {
+            if (part.startsWith('==') && part.endsWith('==') && part.length > 4) {
+              newChildren.push({
+                type: 'mark',
+                data: { hName: 'mark' },
+                children: [{ type: 'text', value: part.slice(2, -2) }],
+              })
+            } else if (part) {
+              newChildren.push({ type: 'text', value: part })
+            }
+          }
+        } else {
+          processNode(child)
+          newChildren.push(child)
+        }
+      }
+      node.children = newChildren
+    }
+    processNode(tree)
+  }
+}
+
 const MD_PLUGINS = {
-  remark: [remarkGfm, remarkMath],
+  remark: [remarkGfm, remarkMath, remarkMark],
   rehype: [rehypeKatex],
 }
 

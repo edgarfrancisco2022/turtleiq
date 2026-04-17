@@ -63,7 +63,18 @@ export default function ListMode() {
     [filtered, nameQuery]
   )
 
-  const [focusedIdx, setFocusedIdx] = useState(0)
+  // Track focus by concept ID so that sort-order changes (e.g. reviews_high/low
+  // resorting after a reviewCount update) never reset focus to index 0. The
+  // derived focusedIdx always reflects the concept's current position.
+  const [focusedConceptId, setFocusedConceptId] = useState<string | null>(null)
+  const focusedConceptIdRef = useRef<string | null>(null)
+  focusedConceptIdRef.current = focusedConceptId
+  const focusedIdx = useMemo(() => {
+    if (!focusedConceptId) return 0
+    const idx = results.findIndex((c) => c.id === focusedConceptId)
+    return idx >= 0 ? idx : 0
+  }, [results, focusedConceptId])
+
   const [panelOpen, setPanelOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Concept | null>(null)
   const focusedConcept = results[focusedIdx] ?? null
@@ -101,7 +112,7 @@ export default function ListMode() {
 
       backRestoring.current = true
       const idx = lastId ? results.findIndex((c) => c.id === lastId) : -1
-      if (idx >= 0) setFocusedIdx(idx)
+      if (idx >= 0) setFocusedConceptId(lastId!)
 
       if (saved) {
         suppressScroll.current = true
@@ -118,13 +129,19 @@ export default function ListMode() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Reset focus to first item when filtered list or sort changes (skip during back-navigation restoration)
+  // Reset focus to first item when the visible concept set changes (filter/search/sort change).
+  // If the previously focused concept is still visible (e.g. sort-order changed due to a
+  // reviewCount update), we skip the reset — focusedIdx auto-recalculates via useMemo.
+  const resultsKey = results.map((c) => c.id).join(',')
   const isFirstRender = useRef(true)
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return }
     if (backRestoring.current) { backRestoring.current = false; return }
-    setFocusedIdx(0)
-  }, [results.length, sort])
+    const prevId = focusedConceptIdRef.current
+    if (prevId && results.some((c) => c.id === prevId)) return
+    setFocusedConceptId(results[0]?.id ?? null)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resultsKey])
 
   // Scroll focused row into view
   useEffect(() => {
@@ -151,13 +168,15 @@ export default function ListMode() {
         const now = Date.now()
         if (e.repeat && now - lastNavTime.current < 180) return
         lastNavTime.current = now
-        setFocusedIdx((i) => Math.min(i + 1, results.length - 1))
+        const newIdx = Math.min(focusedIdx + 1, results.length - 1)
+        setFocusedConceptId(results[newIdx]?.id ?? null)
       } else if (e.key === 'ArrowUp') {
         e.preventDefault()
         const now = Date.now()
         if (e.repeat && now - lastNavTime.current < 180) return
         lastNavTime.current = now
-        setFocusedIdx((i) => Math.max(i - 1, 0))
+        const newIdx = Math.max(focusedIdx - 1, 0)
+        setFocusedConceptId(results[newIdx]?.id ?? null)
       } else if (e.key === 'Enter') {
         e.preventDefault()
         const concept = results[focusedIdx]
@@ -254,7 +273,7 @@ export default function ListMode() {
               concept={concept}
               focused={idx === focusedIdx}
               subjects={subjects}
-              onFocus={() => setFocusedIdx(idx)}
+              onFocus={() => setFocusedConceptId(concept.id)}
               onSaveState={() => saveState(concept.id)}
               onDelete={(e) => handleDelete(e, concept)}
               onUpdateField={(field, value) => updateFieldMut.mutate({ id: concept.id, field: field as 'state' | 'priority' | 'pinned', value: value as ConceptState | ConceptPriority | boolean })}
@@ -333,7 +352,7 @@ function ListConceptRow({ concept, focused, subjects, onFocus, onSaveState, onDe
           <PinButton pinned={concept.pinned} onToggle={() => onUpdateField('pinned', !concept.pinned)} />
           <button
             onClick={onDelete}
-            className="text-gray-300 hover:text-red-500 transition-colors text-sm leading-none focus:outline-none focus:ring-2 focus:ring-red-400 rounded"
+            className="text-gray-300 hover:text-red-500 transition-colors text-sm leading-none focus:outline-none rounded"
             aria-label={`Delete concept: ${concept.name}`}
           >
             <span aria-hidden="true">✕</span>

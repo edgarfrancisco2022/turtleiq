@@ -58,7 +58,12 @@ export default function SubjectView() {
   })
 
   const [filters, setFiltersState] = useState<FilterState>(() => savedState?.filters ?? EMPTY_FILTERS)
-  const [focusedIdx, setFocusedIdx] = useState(0)
+
+  // Track focus by concept ID so sort-order changes (e.g. after a reviewCount
+  // update) never reset focus to index 0. focusedIdx is derived from the ID.
+  const [focusedConceptId, setFocusedConceptId] = useState<string | null>(null)
+  const focusedConceptIdRef = useRef<string | null>(null)
+
   const [panelOpen, setPanelOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Concept | null>(null)
 
@@ -87,6 +92,7 @@ export default function SubjectView() {
   }, [registerViewStateSaver])
 
   const suppressScroll = useRef(false)
+  const backRestoring = useRef(false)
 
   const subjectConcepts = allConcepts.filter((c) => c.subjectIds.includes(subjectId))
 
@@ -112,6 +118,13 @@ export default function SubjectView() {
     return filtered
   }, [subjectConcepts, filters, sortMode, subjectOrder, subjectId])
 
+  focusedConceptIdRef.current = focusedConceptId
+  const focusedIdx = useMemo(() => {
+    if (!focusedConceptId) return 0
+    const idx = displayed.findIndex((c) => c.id === focusedConceptId)
+    return idx >= 0 ? idx : 0
+  }, [displayed, focusedConceptId])
+
   // Scroll to top on mount; restore scroll/focus if returning from ConceptView
   useEffect(() => {
     const el = getMain()
@@ -126,7 +139,10 @@ export default function SubjectView() {
       sessionStorage.removeItem(LAST_ID_KEY(subjectId))
 
       const idx = lastId ? displayed.findIndex((c) => c.id === lastId) : -1
-      if (idx >= 0) setFocusedIdx(idx)
+      if (idx >= 0) {
+        backRestoring.current = true
+        setFocusedConceptId(lastId!)
+      }
 
       if (saved) {
         suppressScroll.current = true
@@ -143,12 +159,19 @@ export default function SubjectView() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subjectId])
 
-  // Reset focus when sort changes (skip first render)
+  // Reset focus when the visible concept set changes (filter/sort change).
+  // If the previously focused concept is still visible (e.g. sort reorder from a
+  // reviewCount update), skip the reset — focusedIdx auto-recalculates via useMemo.
+  const displayedKey = displayed.map((c) => c.id).join(',')
   const isFirstRender = useRef(true)
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return }
-    setFocusedIdx(0)
-  }, [sortMode])
+    if (backRestoring.current) { backRestoring.current = false; return }
+    const prevId = focusedConceptIdRef.current
+    if (prevId && displayed.some((c) => c.id === prevId)) return
+    setFocusedConceptId(displayed[0]?.id ?? null)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displayedKey])
 
   // Scroll focused row into view
   useEffect(() => {
@@ -161,7 +184,7 @@ export default function SubjectView() {
 
   const focusedConcept = displayed[focusedIdx] ?? null
 
-  // Keyboard navigation
+  // Keyboard navigation — stateRef keeps closures fresh every render
   const stateRef = useRef({ displayed, focusedIdx, filters })
   stateRef.current = { displayed, focusedIdx, filters }
   const lastNavTime = useRef(0)
@@ -177,13 +200,15 @@ export default function SubjectView() {
         const now = Date.now()
         if (e.repeat && now - lastNavTime.current < 180) return
         lastNavTime.current = now
-        setFocusedIdx((i) => Math.min(i + 1, displayed.length - 1))
+        const newIdx = Math.min(focusedIdx + 1, displayed.length - 1)
+        setFocusedConceptId(displayed[newIdx]?.id ?? null)
       } else if (e.key === 'ArrowUp') {
         e.preventDefault()
         const now = Date.now()
         if (e.repeat && now - lastNavTime.current < 180) return
         lastNavTime.current = now
-        setFocusedIdx((i) => Math.max(i - 1, 0))
+        const newIdx = Math.max(focusedIdx - 1, 0)
+        setFocusedConceptId(displayed[newIdx]?.id ?? null)
       } else if (e.key === 'Enter') {
         e.preventDefault()
         const concept = displayed[focusedIdx]
@@ -290,7 +315,7 @@ export default function SubjectView() {
               key={concept.id}
               concept={concept}
               focused={idx === focusedIdx}
-              onFocus={() => setFocusedIdx(idx)}
+              onFocus={() => setFocusedConceptId(concept.id)}
               isCustom={sortMode === 'custom' && !hasActiveFilters}
               canUp={canMoveUp(concept.id)}
               canDown={canMoveDown(concept.id)}
@@ -369,7 +394,7 @@ function ConceptRow({ concept, focused, onFocus, isCustom, canUp, canDown, onMov
           <PinButton pinned={concept.pinned} onToggle={() => onUpdateField('pinned', !concept.pinned)} />
           <button
             onClick={onDelete}
-            className="text-gray-300 hover:text-red-500 transition-colors text-sm leading-none focus:outline-none focus:ring-2 focus:ring-red-400 rounded"
+            className="text-gray-300 hover:text-red-500 transition-colors text-sm leading-none focus:outline-none rounded"
             aria-label={`Delete concept: ${concept.name}`}
           >
             <span aria-hidden="true">✕</span>
@@ -380,7 +405,7 @@ function ConceptRow({ concept, focused, onFocus, isCustom, canUp, canDown, onMov
               <button
                 onClick={onMoveUp}
                 disabled={!canUp}
-                className="text-gray-300 hover:text-gray-600 disabled:opacity-20 leading-tight text-xs px-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400 rounded"
+                className="text-gray-300 hover:text-gray-600 disabled:opacity-20 leading-tight text-xs px-0.5 focus:outline-none rounded"
                 aria-label={`Move ${concept.name} up`}
               >
                 <span aria-hidden="true">↑</span>
@@ -388,7 +413,7 @@ function ConceptRow({ concept, focused, onFocus, isCustom, canUp, canDown, onMov
               <button
                 onClick={onMoveDown}
                 disabled={!canDown}
-                className="text-gray-300 hover:text-gray-600 disabled:opacity-20 leading-tight text-xs px-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400 rounded"
+                className="text-gray-300 hover:text-gray-600 disabled:opacity-20 leading-tight text-xs px-0.5 focus:outline-none rounded"
                 aria-label={`Move ${concept.name} down`}
               >
                 <span aria-hidden="true">↓</span>

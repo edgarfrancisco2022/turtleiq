@@ -29,6 +29,12 @@ html, body {
   overscroll-behavior: none;
 }
 
+/* Slim, dark-themed scrollbar to match sidebar and dark UI surfaces */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #4b5563 transparent;
+}
+
 a,
 button,
 [role="button"],
@@ -75,4 +81,28 @@ input[type="search"]::-webkit-search-cancel-button {
 }
 .prose ol > li > ol > li > ol {
   list-style-type: lower-roman !important;
+}
+
+/* Highlight (==text==) via custom remark-mark plugin */
+.prose mark {
+  background-color: #fef08a;
+  color: #713f12;
+  border-radius: 2px;
+  padding: 0.1em 0.25em;
+  font-style: normal;
+}
+
+/* Inline code — explicit styles to ensure rendering across all prose sizes */
+.prose :not(pre) > code {
+  background-color: #f3f4f6;
+  color: #1f2937;
+  border-radius: 3px;
+  padding: 0.1em 0.35em;
+  font-size: 0.875em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 400;
+}
+.prose :not(pre) > code::before,
+.prose :not(pre) > code::after {
+  content: none;
 }

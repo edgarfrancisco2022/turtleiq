@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { StudySession, Subject } from '@/lib/types'
 
 const TIME_OPTIONS = [
@@ -74,12 +74,13 @@ export default function EditSessionModal({ session, subjects, onSave, onCancel }
     onSave({ minutes: total, subjectId: subjectId || null })
   }
 
+  const backdropMouseDownRef = useRef(false)
+
   return (
     <div
       className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onCancel()
-      }}
+      onMouseDown={(e) => { backdropMouseDownRef.current = e.target === e.currentTarget }}
+      onMouseUp={(e) => { if (backdropMouseDownRef.current && e.target === e.currentTarget) onCancel() }}
       aria-modal="true"
       role="dialog"
       aria-labelledby="edit-session-dialog-title"

@@ -132,8 +132,8 @@ function NavItem({
       }}
       className={
         collapsed
-          ? `flex items-center justify-center p-2 rounded-lg transition-colors ${base}`
-          : `flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${base}`
+          ? `flex items-center justify-center p-2 rounded-lg transition-colors focus:outline-none ${base}`
+          : `flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors focus:outline-none ${base}`
       }
     >
       {children}
@@ -204,7 +204,7 @@ export default function Sidebar({
           <>
             <Link
               href="/app"
-              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity focus:outline-none"
               aria-label="TortugaIQ home"
               onClick={(e) => {
                 if (isDirty) {
@@ -418,7 +418,7 @@ function SubjectLink({
           onMobileClose()
         }
       }}
-      className={`flex items-center justify-between px-3 py-1.5 rounded-lg text-sm transition-colors ${
+      className={`flex items-center justify-between px-3 py-1.5 rounded-lg text-sm transition-colors focus:outline-none ${
         isActive
           ? 'bg-gray-700 text-white font-medium'
           : 'text-gray-400 hover:bg-gray-800 hover:text-gray-100'

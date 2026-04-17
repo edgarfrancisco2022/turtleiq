@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { useStudySessions, useDeleteStudySession, useUpdateStudySession } from '@/hooks/useStudySessions'
 import { useSubjects } from '@/hooks/useSubjects'
+import { getSubjectColor } from '@/lib/subject-colors'
 import DeleteSessionDialog from '@/components/ui/DeleteSessionDialog'
 import EditSessionModal from '@/components/ui/EditSessionModal'
 import type { StudySession } from '@/lib/types'
@@ -167,7 +168,7 @@ export default function SessionsPage() {
               >
                 {/* Subject badge */}
                 {subjectName ? (
-                  <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-medium flex-shrink-0">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${getSubjectColor(session.subjectId!, subjects)}`}>
                     {subjectName}
                   </span>
                 ) : (
@@ -193,7 +194,7 @@ export default function SessionsPage() {
                 {/* Edit button */}
                 <button
                   onClick={() => setEditTarget(session)}
-                  className="flex items-center justify-center text-gray-300 hover:text-gray-600 transition-colors p-1 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1"
+                  className="flex items-center justify-center text-gray-300 hover:text-gray-600 transition-colors p-1 rounded focus:outline-none"
                   aria-label="Edit session"
                   title="Edit session"
                 >
@@ -203,7 +204,7 @@ export default function SessionsPage() {
                 {/* Delete button */}
                 <button
                   onClick={() => setDeleteTarget(session)}
-                  className="flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors p-1 rounded focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-1"
+                  className="flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors p-1 rounded focus:outline-none"
                   aria-label="Remove session"
                   title="Remove session"
                 >

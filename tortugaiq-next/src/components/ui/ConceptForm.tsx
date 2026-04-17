@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import CreatableMultiSelect from './CreatableMultiSelect'
 import { useSubjects, useTopics, useTags } from '@/hooks/useSubjects'
 import { useCreateConcept, useUpdateConcept } from '@/hooks/useConcepts'
@@ -86,11 +86,13 @@ export default function ConceptForm({ concept = null, onClose, onDone }: Props) 
   }
 
   const pending = createMutation.isPending || updateMutation.isPending
+  const backdropMouseDownRef = useRef(false)
 
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      onMouseDown={(e) => { backdropMouseDownRef.current = e.target === e.currentTarget }}
+      onMouseUp={(e) => { if (backdropMouseDownRef.current && e.target === e.currentTarget) onClose() }}
     >
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
         {/* Header */}

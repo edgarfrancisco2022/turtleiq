@@ -102,7 +102,7 @@ function DropdownPill<T extends string>({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={`${value || options[0]}, change value`}
-        className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1 ${styleMap[value] || styleMap[options[0]]}`}
+        className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full transition-opacity hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1 ${styleMap[value] || styleMap[options[0]]}`}
       >
         {value || options[0]}
         <ChevronIcon aria-hidden="true" />
@@ -203,7 +203,7 @@ export function ReviewCounter({
           if (n > 0) onDecrement?.()
         }}
         disabled={n === 0}
-        className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors text-sm font-bold leading-none disabled:opacity-25 disabled:pointer-events-none"
+        className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors text-sm font-bold leading-none disabled:opacity-25 disabled:pointer-events-none focus:outline-none"
         title="Decrement review count"
       >
         −
@@ -217,7 +217,7 @@ export function ReviewCounter({
           e.preventDefault()
           onIncrement()
         }}
-        className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors text-sm font-bold leading-none"
+        className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors text-sm font-bold leading-none focus:outline-none"
         title="Increment review count"
       >
         +
@@ -259,7 +259,7 @@ export function PinButton({
         e.currentTarget.blur()
       }}
       title={pinned ? 'Unpin concept' : 'Pin concept'}
-      className={`inline-flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-1 rounded ${pinned ? 'text-amber-400' : 'text-gray-300 hover:text-amber-300'}`}
+      className={`inline-flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-1 rounded ${pinned ? 'text-amber-400' : 'text-gray-300 hover:text-amber-300'}`}
       aria-label={pinned ? 'Unpin concept' : 'Pin concept'}
       aria-pressed={pinned}
     >

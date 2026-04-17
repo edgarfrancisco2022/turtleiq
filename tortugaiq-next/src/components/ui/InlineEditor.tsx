@@ -8,8 +8,39 @@ import rehypeKatex from 'rehype-katex'
 import MarkdownHelpPanel from './MarkdownHelpPanel'
 import { useDirtyState } from '@/components/providers/DirtyStateProvider'
 
+// Custom remark plugin: transforms ==text== into <mark>text</mark> via HAST hName
+function remarkMark() {
+  return (tree: any) => {
+    function processNode(node: any) {
+      if (!node.children) return
+      const newChildren: any[] = []
+      for (const child of node.children) {
+        if (child.type === 'text' && child.value.includes('==')) {
+          const parts = child.value.split(/(==[^=\n]+?==)/)
+          for (const part of parts) {
+            if (part.startsWith('==') && part.endsWith('==') && part.length > 4) {
+              newChildren.push({
+                type: 'mark',
+                data: { hName: 'mark' },
+                children: [{ type: 'text', value: part.slice(2, -2) }],
+              })
+            } else if (part) {
+              newChildren.push({ type: 'text', value: part })
+            }
+          }
+        } else {
+          processNode(child)
+          newChildren.push(child)
+        }
+      }
+      node.children = newChildren
+    }
+    processNode(tree)
+  }
+}
+
 const MD_PLUGINS = {
-  remark: [remarkGfm, remarkMath],
+  remark: [remarkGfm, remarkMath, remarkMark],
   rehype: [rehypeKatex],
 }
 
@@ -19,6 +50,11 @@ interface Props {
   hint?: React.ReactNode
   editPlaceholder?: string
   onSave: (value: string) => void
+  /** Controlled editing state — when provided, lifts isEditing up to the parent (MvkDrawer) */
+  isEditing?: boolean
+  onEditChange?: (v: boolean) => void
+  /** MouseDown handler for drag-to-resize — when provided, a drag strip is rendered inside the edit toolbar */
+  onResizeMouseDown?: (e: React.MouseEvent) => void
 }
 
 /**
@@ -31,8 +67,17 @@ export default function InlineEditor({
   hint = null,
   editPlaceholder,
   onSave,
+  isEditing: isEditingProp,
+  onEditChange,
+  onResizeMouseDown,
 }: Props) {
-  const [isEditing, setIsEditing] = useState(false)
+  const [isEditingInternal, setIsEditingInternal] = useState(false)
+  // Use controlled state when parent provides it, otherwise use internal state
+  const isEditing = isEditingProp !== undefined ? isEditingProp : isEditingInternal
+  function setIsEditing(v: boolean) {
+    setIsEditingInternal(v)
+    onEditChange?.(v)
+  }
   const [draft, setDraft] = useState(content)
   const [viewMode, setViewMode] = useState<'code' | 'preview'>('code')
   const [showHelp, setShowHelp] = useState(false)
@@ -85,35 +130,43 @@ export default function InlineEditor({
 
   if (!isEditing) {
     return (
-      <div className="bg-white overflow-hidden flex flex-col h-full">
-        <div className="relative flex-1 min-h-0">
-          {/* Floating Edit button */}
-          <button
-            onClick={startEdit}
-            className="absolute top-2.5 right-3 z-10 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-md px-2.5 py-1 text-xs font-medium text-blue-600 shadow-sm hover:shadow hover:border-blue-300 hover:text-blue-700 transition-all duration-150"
+      <div className="relative bg-white overflow-hidden flex flex-col h-full">
+        {/* Drag strip — thin resize handle only, no full bar */}
+        {onResizeMouseDown && (
+          <div
+            onMouseDown={onResizeMouseDown}
+            className="flex-shrink-0 h-3 cursor-ns-resize flex items-center justify-center group/handle select-none"
+            aria-hidden="true"
           >
-            Edit
-          </button>
-          {/* Scrollable content */}
-          <div className="px-4 pt-3 pb-3 overflow-y-auto overscroll-none h-full">
-            {content ? (
-              <div className="prose prose-xs prose-neutral max-w-none text-sm">
-                <ReactMarkdown
-                  remarkPlugins={MD_PLUGINS.remark}
-                  rehypePlugins={MD_PLUGINS.rehype}
-                >
-                  {content}
-                </ReactMarkdown>
-              </div>
-            ) : (
-              <div>
-                <p className="text-xs text-gray-400 italic m-0">
-                  {placeholder || 'No MVK notes. Click Edit to add.'}
-                </p>
-                {hint}
-              </div>
-            )}
+            <div className="w-8 h-0.5 rounded-full bg-gray-200 group-hover/handle:bg-gray-300 transition-colors duration-150" />
           </div>
+        )}
+        {/* Floating Edit button — positioned where it sat in the former top bar */}
+        <button
+          onClick={startEdit}
+          className="absolute top-2 right-4 z-10 text-xs font-medium px-2.5 py-1 border border-gray-200 rounded bg-white text-blue-600 hover:border-blue-300 hover:text-blue-700 transition-colors shadow-sm"
+        >
+          Edit
+        </button>
+        {/* Scrollable content fills full height */}
+        <div className="flex-1 min-h-0 px-4 pt-2 pb-3 overflow-y-auto overscroll-none">
+          {content ? (
+            <div className="prose prose-xs prose-neutral max-w-none text-sm">
+              <ReactMarkdown
+                remarkPlugins={MD_PLUGINS.remark}
+                rehypePlugins={MD_PLUGINS.rehype}
+              >
+                {content}
+              </ReactMarkdown>
+            </div>
+          ) : (
+            <div>
+              <p className="text-xs text-gray-400 italic m-0">
+                {placeholder || 'No MVK notes. Click Edit to add.'}
+              </p>
+              {hint}
+            </div>
+          )}
         </div>
       </div>
     )
@@ -121,39 +174,52 @@ export default function InlineEditor({
 
   return (
     <div className="bg-white overflow-hidden flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 bg-gray-50">
-        <div className="flex gap-1">
-          {(['code', 'preview'] as const).map((mode) => (
-            <button
-              key={mode}
-              onClick={() => setViewMode(mode)}
-              className={`text-xs px-3 py-1 rounded-md font-medium capitalize transition-colors ${
-                viewMode === mode
-                  ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {mode}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowHelp(true)}
-            className="text-xs text-gray-400 hover:text-gray-600 font-medium transition-colors"
+      {/* Unified edit-mode header: drag affordance overlaid at top, controls centered in full height */}
+      <div className="relative flex items-center flex-shrink-0 bg-white border-b border-gray-100 h-10 px-4">
+        {/* Drag sub-strip — absolute overlay at top edge; buttons remain centered in full h-10 */}
+        {onResizeMouseDown && (
+          <div
+            onMouseDown={onResizeMouseDown}
+            className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize flex items-center justify-center group/editdrag select-none"
+            aria-hidden="true"
           >
-            Markdown Help
-          </button>
-          <div className="flex gap-2">
+            <div className="w-8 h-0.5 rounded-full bg-gray-200 group-hover/editdrag:bg-gray-300 transition-colors duration-150" />
+          </div>
+        )}
+        {/* Controls row — full width, vertically centered in h-10 */}
+        <div className="flex items-center w-full">
+          <div className="flex gap-0.5">
+            {(['code', 'preview'] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                className={`text-xs px-2.5 py-1 rounded font-medium capitalize transition-colors ${
+                  viewMode === mode
+                    ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
+                    : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={() => setShowHelp(true)}
+              className="text-xs text-gray-500 hover:text-blue-600 font-medium transition-colors"
+            >
+              Markdown Help
+            </button>
+            <div className="w-px h-3.5 bg-gray-200 flex-shrink-0" />
             <button
               onClick={handleCancel}
-              className="text-xs text-gray-500 hover:text-gray-700 font-medium px-3 py-1 border border-gray-200 rounded-md bg-white"
+              className="text-xs text-gray-500 hover:text-gray-700 font-medium px-2.5 py-1 border border-gray-200 rounded bg-white transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
-              className="text-xs bg-blue-600 text-white font-medium px-3 py-1 rounded-md hover:bg-blue-700"
+              className="text-xs bg-blue-600 text-white font-medium px-2.5 py-1 rounded hover:bg-blue-700 transition-colors"
             >
               Save
             </button>

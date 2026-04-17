@@ -368,17 +368,15 @@ export async function updateConcept(id: string, input: ConceptInput): Promise<vo
     resolveOrCreate(userId, parsed.tagNames, tags),
   ])
 
-  // Update concept row
+  // Update concept row — only touch name and updatedAt.
+  // Content fields (mvkNotes, markdownNotes, referencesMarkdown) are managed
+  // by updateConceptContent; status fields (state, priority, pinned) are
+  // managed by updateConceptField. Overwriting them here would erase notes
+  // saved independently via the markdown editors.
   await db
     .update(concepts)
     .set({
       name: parsed.name,
-      mvkNotes: parsed.mvkNotes,
-      markdownNotes: parsed.markdownNotes,
-      referencesMarkdown: parsed.referencesMarkdown,
-      state: parsed.state,
-      priority: parsed.priority,
-      pinned: parsed.pinned,
       updatedAt: new Date(),
     })
     .where(and(eq(concepts.id, id), eq(concepts.userId, userId)))

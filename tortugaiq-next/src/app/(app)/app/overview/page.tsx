@@ -230,7 +230,7 @@ export default function OverviewPage() {
 
       {/* ── Section 1: Study ─────────────────────────────────── */}
       <section className="mb-10">
-        <SectionTitle accent="blue">Study</SectionTitle>
+        <SectionTitle accent="blue">Activity</SectionTitle>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
           <SummaryCard accent="blue" value={formatMinutes(totalMinutes)} label="Total Study Time" />

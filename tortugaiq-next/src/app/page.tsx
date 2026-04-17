@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import FeaturesSection from '@/components/landing/FeaturesSection'
 
 const IDEAS = [
   'Learning systems work well at a small scale, but become unmaintainable as they grow over time.',
@@ -69,6 +70,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Features */}
+      <FeaturesSection />
 
       {/* The idea */}
       <section id="the-idea" className="bg-gray-50 border-t border-gray-100 py-20">

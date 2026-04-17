@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef, Fragment } from 'react'
+import { useState, useEffect, useRef, useMemo, Fragment } from 'react'
 import { useRouter } from 'next/navigation'
 import { useConcepts, useUpdateConceptContent, useIncrementReview, useDecrementReview } from '@/hooks/useConcepts'
-import { useTopics, useTags } from '@/hooks/useSubjects'
+import { useSubjects, useTopics, useTags } from '@/hooks/useSubjects'
 import { useSidebarState } from '@/components/providers/SidebarStateProvider'
 import { useFilterSort } from '@/hooks/useFilterSort'
 import { useViewStateRegistry } from '@/components/providers/ViewStateRegistryProvider'
@@ -128,6 +128,7 @@ export default function IndexMode() {
   const { registerViewStateSaver } = useViewStateRegistry()
 
   const { data: allConcepts = [] } = useConcepts()
+  const { data: subjects = [] } = useSubjects()
   const { data: topics = [] } = useTopics()
   const { data: tags = [] } = useTags()
   const updateContentMut = useUpdateConceptContent()
@@ -150,7 +151,17 @@ export default function IndexMode() {
   const groups = groupByLetter(filtered)
   const visualOrder = groups.flatMap((g) => g.items.map((item) => item.concept))
 
-  const [focusedIdx, setFocusedIdx] = useState(0)
+  // Track focus by concept ID so sort-order changes after reviewCount updates
+  // never reset focus to index 0. focusedIdx is derived from the ID.
+  const [focusedConceptId, setFocusedConceptId] = useState<string | null>(null)
+  const focusedConceptIdRef = useRef<string | null>(null)
+  focusedConceptIdRef.current = focusedConceptId
+  const focusedIdx = useMemo(() => {
+    if (!focusedConceptId) return 0
+    const idx = visualOrder.findIndex((c) => c.id === focusedConceptId)
+    return idx >= 0 ? idx : 0
+  }, [visualOrder, focusedConceptId])
+
   const [panelOpen, setPanelOpen] = useState(false)
   const focusedConcept = visualOrder[focusedIdx] ?? null
 
@@ -208,7 +219,7 @@ export default function IndexMode() {
     const idx = visualOrder.findIndex((c) => c.id === lastId)
     if (idx >= 0) {
       backRestoring.current = true
-      setFocusedIdx(idx)
+      setFocusedConceptId(lastId!)
     } else {
       pendingFocusId.current = lastId
     }
@@ -230,21 +241,28 @@ export default function IndexMode() {
   // Deferred focus restoration if visualOrder was empty on first render
   useEffect(() => {
     if (!pendingFocusId.current || !visualOrder.length) return
-    const idx = visualOrder.findIndex((c) => c.id === pendingFocusId.current)
+    const id = pendingFocusId.current
+    const idx = visualOrder.findIndex((c) => c.id === id)
     if (idx < 0) return
     pendingFocusId.current = null
     backRestoring.current = true
-    setFocusedIdx(idx)
+    setFocusedConceptId(id)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtered])
 
-  // Reset focus when sort changes (skip first render and back-navigation)
+  // Reset focus when the visible concept set changes (filter/sort change).
+  // If the previously focused concept is still visible (e.g. sort reorder from a
+  // reviewCount update), skip the reset — focusedIdx auto-recalculates via useMemo.
+  const visualOrderKey = visualOrder.map((c) => c.id).join(',')
   const isFirstRender = useRef(true)
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return }
     if (backRestoring.current) { backRestoring.current = false; return }
-    setFocusedIdx(0)
-  }, [sort])
+    const prevId = focusedConceptIdRef.current
+    if (prevId && visualOrder.some((c) => c.id === prevId)) return
+    setFocusedConceptId(visualOrder[0]?.id ?? null)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visualOrderKey])
 
   // Scroll focused pill into view
   useEffect(() => {
@@ -273,25 +291,29 @@ export default function IndexMode() {
         const now = Date.now()
         if (e.repeat && now - lastNavTime.current < 180) return
         lastNavTime.current = now
-        setFocusedIdx((i) => Math.min(i + 1, visualOrder.length - 1))
+        const newIdx = Math.min(focusedIdx + 1, visualOrder.length - 1)
+        setFocusedConceptId(visualOrder[newIdx]?.id ?? null)
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault()
         const now = Date.now()
         if (e.repeat && now - lastNavTime.current < 180) return
         lastNavTime.current = now
-        setFocusedIdx((i) => Math.max(i - 1, 0))
+        const newIdx = Math.max(focusedIdx - 1, 0)
+        setFocusedConceptId(visualOrder[newIdx]?.id ?? null)
       } else if (e.key === 'ArrowDown') {
         e.preventDefault()
         const now = Date.now()
         if (e.repeat && now - lastNavTime.current < 180) return
         lastNavTime.current = now
-        setFocusedIdx(getVisualNavIndex('down', focusedIdx, visualOrder))
+        const newIdx = getVisualNavIndex('down', focusedIdx, visualOrder)
+        setFocusedConceptId(visualOrder[newIdx]?.id ?? null)
       } else if (e.key === 'ArrowUp') {
         e.preventDefault()
         const now = Date.now()
         if (e.repeat && now - lastNavTime.current < 180) return
         lastNavTime.current = now
-        setFocusedIdx(getVisualNavIndex('up', focusedIdx, visualOrder))
+        const newIdx = getVisualNavIndex('up', focusedIdx, visualOrder)
+        setFocusedConceptId(visualOrder[newIdx]?.id ?? null)
       } else if (e.key === 'Enter') {
         e.preventDefault()
         const concept = visualOrder[focusedIdx]
@@ -331,7 +353,7 @@ export default function IndexMode() {
       router.push(`/app/concepts/${c.id}`)
     } else {
       e.preventDefault()
-      setFocusedIdx(visualIdx)
+      setFocusedConceptId(c.id)
     }
   }
 
@@ -349,9 +371,10 @@ export default function IndexMode() {
         setSort={setSort}
         clearFilters={clearFilters}
         hasActiveFilters={hasActiveFilters}
+        subjects={subjects}
         topics={topics}
         tags={tags}
-        availableFilters={['topic', 'tag', 'state', 'priority', 'pinned']}
+        availableFilters={['subject', 'topic', 'tag', 'state', 'priority', 'pinned']}
         resultCount={filtered.length}
       />
 

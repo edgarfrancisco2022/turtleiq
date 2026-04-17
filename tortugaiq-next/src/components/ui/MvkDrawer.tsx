@@ -31,6 +31,7 @@ export default function MvkDrawer({
     if (!Number.isFinite(parsed)) return DEFAULT_HEIGHT
     return Math.min(parsed, window.innerHeight * MAX_HEIGHT_VH)
   })
+  const [isEditing, setIsEditing] = useState(false)
 
   // Tracks latest height for localStorage save inside drag closure
   const currentHeightRef = useRef(panelHeight)
@@ -41,11 +42,13 @@ export default function MvkDrawer({
     return () => { cleanupRef.current?.() }
   }, [])
 
-  // Reset to default height each time the panel is opened
+  // Reset to default height each time the panel is opened; reset editing state on close
   useEffect(() => {
     if (panelOpen) {
       setPanelHeight(DEFAULT_HEIGHT)
       currentHeightRef.current = DEFAULT_HEIGHT
+    } else {
+      setIsEditing(false)
     }
   }, [panelOpen])
 
@@ -97,15 +100,6 @@ export default function MvkDrawer({
           className="bg-white border-t border-gray-200 shadow-[0_-4px_24px_rgba(0,0,0,0.07)] flex flex-col"
           style={{ height: panelHeight }}
         >
-          {/* Drag handle — 12px hit target, pill indicator */}
-          <div
-            onMouseDown={handleMouseDown}
-            className="w-full h-3 cursor-ns-resize flex items-center justify-center group/handle select-none flex-shrink-0 hover:bg-gray-50/70 transition-colors duration-150"
-            aria-hidden="true"
-          >
-            <div className="w-10 h-0.5 rounded-full bg-gray-300 group-hover/handle:bg-gray-400 transition-colors duration-150" />
-          </div>
-
           {focusedConcept ? (
             <InlineEditor
               key={focusedConcept.id}
@@ -114,6 +108,9 @@ export default function MvkDrawer({
               hint={MVK_EXAMPLE_HINT}
               editPlaceholder={MVK_EDIT_PLACEHOLDER}
               onSave={onSave}
+              isEditing={isEditing}
+              onEditChange={setIsEditing}
+              onResizeMouseDown={handleMouseDown}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center">
