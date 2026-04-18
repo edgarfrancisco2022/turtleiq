@@ -1,18 +1,6 @@
 import Link from 'next/link'
 import FeaturesSection from '@/components/landing/FeaturesSection'
-
-const IDEAS = [
-  'Learning systems work well at a small scale, but become unmaintainable as they grow over time.',
-  'As the system grows, it becomes more difficult to organize, review, and retain knowledge.',
-  'TortugaIQ is built around the concept as the basic unit of knowledge.',
-  'Each concept has a minimal representation, or "Minimum Viable Knowledge (MVK)", which is the smallest amount of information worth remembering.',
-  'Concept names act as triggers for those representations.',
-  'Metadata such as subjects, topics, and tags make organization, filtering, and review easier.',
-  'Simple Markdown notes instead of a complex editor.',
-  'Quick reviews, even across hundreds of concepts.',
-  'Retention through clear concept identity and simple representation rather than complex schemas or learning techniques.',
-  'A personal knowledge library designed to remain maintainable as it grows.',
-]
+import IdeaSection from '@/components/landing/IdeaSection'
 
 export default function LandingPage() {
   return (
@@ -75,19 +63,7 @@ export default function LandingPage() {
       <FeaturesSection />
 
       {/* The idea */}
-      <section id="the-idea" className="bg-gray-50 border-t border-gray-100 py-20">
-        <div className="max-w-3xl mx-auto px-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-8">The idea</h2>
-          <ul className="space-y-4">
-            {IDEAS.map((idea, i) => (
-              <li key={i} className="flex items-start gap-4 text-gray-600 text-sm leading-relaxed">
-                <span className="text-gray-300 mt-0.5 flex-shrink-0">—</span>
-                <span>{idea}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
+      <IdeaSection />
 
       {/* Footer */}
       <footer className="border-t border-gray-100 py-8">
