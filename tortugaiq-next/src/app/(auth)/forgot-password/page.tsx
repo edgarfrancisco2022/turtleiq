@@ -3,6 +3,7 @@
 import { useActionState } from 'react'
 import Link from 'next/link'
 import { requestResetAction } from './actions'
+import Logo from '@/components/ui/Logo'
 
 export default function ForgotPasswordPage() {
   const [state, formAction, pending] = useActionState(requestResetAction, {
@@ -17,8 +18,7 @@ export default function ForgotPasswordPage() {
           href="/"
           className="inline-flex items-center gap-2 text-gray-900 hover:opacity-75 transition-opacity"
         >
-          <span className="text-3xl leading-none">🔍🐢</span>
-          <span className="font-bold text-xl tracking-tight">TortugaIQ</span>
+          <Logo variant="auth" />
         </Link>
       </div>
 

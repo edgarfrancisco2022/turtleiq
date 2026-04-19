@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import Link from 'next/link'
 import { signUpAction, signUpWithGoogle } from './actions'
+import Logo from '@/components/ui/Logo'
 
 export default function SignUpPage() {
   const router = useRouter()
@@ -28,8 +29,7 @@ export default function SignUpPage() {
           href="/"
           className="inline-flex items-center gap-2 text-gray-900 hover:opacity-75 transition-opacity"
         >
-          <span className="text-3xl leading-none">🔍🐢</span>
-          <span className="font-bold text-xl tracking-tight">TortugaIQ</span>
+          <Logo variant="auth" />
         </Link>
       </div>
 

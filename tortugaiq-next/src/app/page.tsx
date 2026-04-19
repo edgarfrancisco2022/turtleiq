@@ -1,7 +1,8 @@
 import Link from 'next/link'
-import { Library, Check } from 'lucide-react'
+import { Check } from 'lucide-react'
 import FeaturesSection from '@/components/landing/FeaturesSection'
 import IdeaSection from '@/components/landing/IdeaSection'
+import Logo from '@/components/ui/Logo'
 
 export default function LandingPage() {
   return (
@@ -10,8 +11,7 @@ export default function LandingPage() {
       <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <span className="text-xl leading-none">🔍🐢</span>
-            <span className="font-bold text-gray-900 text-sm tracking-tight">TortugaIQ</span>
+            <Logo />
           </Link>
           <div className="flex items-center gap-5">
             <Link href="/notes" className="text-sm text-gray-500 hover:text-gray-800 transition-colors">Notes</Link>
@@ -28,16 +28,10 @@ export default function LandingPage() {
 
       {/* Hero */}
       <section className="bg-teal-50 border-b border-teal-200">
-        <div className="max-w-6xl mx-auto px-6 py-24 grid grid-cols-1 lg:grid-cols-[1fr_176px] gap-x-16 gap-y-10 items-end">
+        <div className="max-w-6xl mx-auto px-6 py-24">
 
           {/* Main hero content */}
           <div className="flex flex-col gap-8">
-
-            {/* TortugaIQ label */}
-            <div className="flex items-center gap-2">
-              <Library className="w-4 h-4 text-teal-700" strokeWidth={2} />
-              <span className="text-xs font-mono tracking-widest uppercase text-teal-700">TortugaIQ</span>
-            </div>
 
             {/* Headline */}
             <h1 className="text-4xl font-bold text-gray-900 leading-tight tracking-tight max-w-2xl">
@@ -54,9 +48,9 @@ export default function LandingPage() {
             <div className="rounded-2xl bg-white/80 border border-teal-200 shadow-sm p-6 max-w-xl">
               <ul className="flex flex-col gap-3.5">
                 {[
-                  'Build concepts with a name and a minimal core definition',
-                  'Organize by subject, topic, and tag — no friction',
-                  'Review quickly, grow your library without losing control',
+                  'Build your own library of concepts',
+                  'Choose what to review, without hidden algorithms',
+                  'Flexible organization, without rigid decks or nested complexity',
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-2.5">
                     <Check className="w-3.5 h-3.5 text-teal-600 mt-0.5 shrink-0" strokeWidth={2.5} />
@@ -84,15 +78,6 @@ export default function LandingPage() {
 
           </div>
 
-          {/* Built by — bottom-right, de-emphasized */}
-          <div className="hidden lg:flex flex-col gap-1 text-right self-end pb-0.5">
-            <p className="text-xs font-mono tracking-widest text-gray-400 uppercase opacity-60">Built by</p>
-            <p className="text-sm text-gray-500 font-medium mt-0.5">Edgar Perez</p>
-            <p className="text-xs text-gray-400 leading-relaxed mt-1">
-              I like to think about learning, systems, and intelligence.
-            </p>
-          </div>
-
         </div>
       </section>
 
@@ -105,7 +90,7 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-gray-100 py-8">
         <div className="max-w-6xl mx-auto px-6 flex items-center justify-between text-xs text-gray-400">
-          <span>🔍🐢 TortugaIQ</span>
+          <Logo variant="footer" />
           <div className="flex items-center gap-4">
             <Link href="/notes" className="hover:text-gray-600 transition-colors">Notes</Link>
             <Link href="/sign-in" className="hover:text-gray-600 transition-colors">Sign in</Link>

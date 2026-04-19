@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { getAllPosts, formatPostDate } from '@/lib/posts'
+import Logo from '@/components/ui/Logo'
 
 export const metadata = { title: 'Notes — TortugaIQ' }
 
@@ -15,8 +16,7 @@ export default function NotesPage() {
       >
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2" aria-label="TortugaIQ home">
-            <span className="text-xl leading-none" aria-hidden="true">🔍🐢</span>
-            <span className="font-bold text-gray-900 text-sm tracking-tight">TortugaIQ</span>
+            <Logo />
           </Link>
           <div className="flex items-center gap-5">
             <Link href="/sign-in" className="text-sm text-gray-500 hover:text-gray-800 transition-colors">
@@ -59,7 +59,7 @@ export default function NotesPage() {
       {/* Footer */}
       <footer className="border-t border-gray-100 py-8">
         <div className="max-w-6xl mx-auto px-6 flex items-center justify-between text-xs text-gray-400">
-          <span aria-hidden="true">🔍🐢</span>
+          <Logo variant="footer" />
           <div className="flex items-center gap-4">
             <Link href="/sign-in" className="hover:text-gray-600 transition-colors">Sign in</Link>
             <Link href="/sign-up" className="hover:text-gray-600 transition-colors">Sign up</Link>

@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import Link from 'next/link'
 import { signInWithGoogle } from './actions'
+import Logo from '@/components/ui/Logo'
 
 function SignInContent() {
   const [error, setError] = useState('')
@@ -46,8 +47,7 @@ function SignInContent() {
           href="/"
           className="inline-flex items-center gap-2 text-gray-900 hover:opacity-75 transition-opacity"
         >
-          <span className="text-3xl leading-none">🔍🐢</span>
-          <span className="font-bold text-xl tracking-tight">TortugaIQ</span>
+          <Logo variant="auth" />
         </Link>
       </div>
 

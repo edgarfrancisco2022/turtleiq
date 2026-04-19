@@ -269,9 +269,8 @@ const SUBSECTIONS: (SubsectionConfig & { multi?: boolean })[] = [
       {
         text: (
           <>
-            Update concept details such as <K cls="text-teal-700">state</K>,{' '}
-            <K cls="text-teal-700">priority</K>, <K cls="text-teal-700">review count</K>, and{' '}
-            <K cls="text-teal-700">references</K>
+            Update concept <K cls="text-teal-700">status</K> for targeted{' '}
+            <K cls="text-teal-700">review</K> and <K cls="text-teal-700">statistics</K>
           </>
         ),
         imageIndex: 0,

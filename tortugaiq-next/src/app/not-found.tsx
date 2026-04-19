@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import Logo from '@/components/ui/Logo'
 
 export default function NotFound() {
   const pathname = usePathname()
@@ -16,7 +17,7 @@ export default function NotFound() {
 
         {/* Icon + heading */}
         <div className="-mt-4 mb-4">
-          <span className="text-4xl">🔍🐢</span>
+          <Logo variant="error" />
         </div>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Page not found</h1>
         <p className="text-sm text-gray-500 mb-1">

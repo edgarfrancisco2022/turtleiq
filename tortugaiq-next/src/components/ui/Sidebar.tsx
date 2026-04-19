@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
 import { useSubjects } from '@/hooks/useSubjects'
 import { useDirtyState } from '@/components/providers/DirtyStateProvider'
+import Logo from '@/components/ui/Logo'
 
 // ── Icons ──────────────────────────────────────────────────────────────────
 
@@ -204,7 +205,7 @@ export default function Sidebar({
           <>
             <Link
               href="/app"
-              className="flex items-center gap-2 hover:opacity-80 transition-opacity focus:outline-none"
+              className="hover:opacity-80 transition-opacity focus:outline-none"
               aria-label="TortugaIQ home"
               onClick={(e) => {
                 if (isDirty) {
@@ -213,18 +214,13 @@ export default function Sidebar({
                 }
               }}
             >
-              <span className="text-xl leading-none whitespace-nowrap" aria-hidden="true">
-                🔍🐢
-              </span>
-              <div>
-                <div className="text-white font-bold text-sm tracking-tight">TortugaIQ</div>
-                {subjects.length > 0 && (
-                  <div className="text-gray-400 text-xs">
-                    {subjects.reduce((n, s) => n + (s.conceptCount ?? 0), 0)} concept
-                    {subjects.reduce((n, s) => n + (s.conceptCount ?? 0), 0) !== 1 ? 's' : ''}
-                  </div>
-                )}
-              </div>
+              <Logo variant="sidebar" />
+              {subjects.length > 0 && (
+                <div className="text-gray-400 text-xs mt-0.5 pl-7">
+                  {subjects.reduce((n, s) => n + (s.conceptCount ?? 0), 0)} concept
+                  {subjects.reduce((n, s) => n + (s.conceptCount ?? 0), 0) !== 1 ? 's' : ''}
+                </div>
+              )}
             </Link>
             <button
               onClick={() => {
