@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'TortugaIQ',
+  title: 'TortugaIQ | Long-term learning',
   description: 'Personal knowledge management for long-term learning.',
 }
 
