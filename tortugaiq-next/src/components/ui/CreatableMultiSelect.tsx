@@ -25,7 +25,8 @@ export default function CreatableMultiSelect({
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 })
 
   const triggerRef = useRef<HTMLDivElement>(null)
-  const dropdownRef = useRef<HTMLUListElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   const filtered = options.filter(
     (opt) =>
@@ -69,7 +70,7 @@ export default function CreatableMultiSelect({
   function open() {
     updatePos()
     setIsOpen(true)
-    triggerRef.current?.querySelector('input')?.focus()
+    requestAnimationFrame(() => searchInputRef.current?.focus())
   }
 
   function add(value: string) {
@@ -93,22 +94,45 @@ export default function CreatableMultiSelect({
         add(filtered[0])
       }
     }
-    if (e.key === 'Backspace' && !input && selected.length > 0) {
-      remove(selected[selected.length - 1])
-    }
     if (e.key === 'Escape') {
       setIsOpen(false)
     }
   }
 
-  const dropdown =
-    isOpen && hasItems
-      ? createPortal(
-          <ul
-            ref={dropdownRef}
-            style={{ top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
-            className="fixed bg-white border border-gray-100 rounded-lg shadow-xl z-[9999] max-h-44 overflow-y-auto overscroll-none py-1"
-          >
+  const dropdown = isOpen
+    ? createPortal(
+        <div
+          ref={dropdownRef}
+          style={{ top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
+          className="fixed bg-white border border-gray-100 rounded-lg shadow-xl z-[9999] overscroll-none"
+        >
+          {/* Search row */}
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100">
+            <svg
+              viewBox="0 0 16 16"
+              fill="none"
+              className="w-3.5 h-3.5 text-gray-400 flex-shrink-0"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="6.5" cy="6.5" r="4.5" />
+              <path d="M10.5 10.5L14 14" />
+            </svg>
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Search or create..."
+              className="flex-1 text-sm outline-none bg-transparent text-gray-800 placeholder:text-gray-400"
+            />
+          </div>
+
+          {/* Options list */}
+          <ul className="max-h-44 overflow-y-auto overscroll-none py-1">
             {filtered.map((opt) => (
               <li
                 key={opt}
@@ -132,10 +156,16 @@ export default function CreatableMultiSelect({
                 + Create &ldquo;{input.trim()}&rdquo;
               </li>
             )}
-          </ul>,
-          document.body
-        )
-      : null
+            {input.trim() && !hasItems && (
+              <li className="px-3 py-1.5 text-sm text-gray-400 select-none">
+                No results for &ldquo;{input.trim()}&rdquo;
+              </li>
+            )}
+          </ul>
+        </div>,
+        document.body
+      )
+    : null
 
   return (
     <div>
@@ -146,7 +176,7 @@ export default function CreatableMultiSelect({
 
       <div
         ref={triggerRef}
-        className={`min-h-[34px] border rounded-md px-2 py-1 flex flex-wrap gap-1 items-center cursor-text transition-colors bg-white ${
+        className={`min-h-[34px] border rounded-md px-2 py-1 flex flex-wrap gap-1 items-center cursor-pointer transition-colors bg-white select-none ${
           isOpen ? 'border-blue-500' : 'border-gray-300 hover:border-gray-400'
         }`}
         onClick={open}
@@ -179,19 +209,20 @@ export default function CreatableMultiSelect({
             </button>
           </span>
         ))}
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => {
-            setInput(e.target.value)
-            setIsOpen(true)
-          }}
-          onFocus={open}
-          onBlur={() => setIsOpen(false)}
-          onKeyDown={handleKeyDown}
-          placeholder={selected.length === 0 ? placeholder : ''}
-          className="flex-1 min-w-[100px] text-sm outline-none bg-transparent py-0.5 text-gray-800 placeholder:text-gray-400"
-        />
+        {selected.length === 0 && (
+          <span className="flex-1 text-sm text-gray-400 py-0.5">{placeholder}</span>
+        )}
+        <svg
+          viewBox="0 0 10 6"
+          fill="none"
+          className={`w-2.5 h-2.5 text-gray-400 flex-shrink-0 ml-auto transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M1 1l4 4 4-4" />
+        </svg>
       </div>
 
       {dropdown}

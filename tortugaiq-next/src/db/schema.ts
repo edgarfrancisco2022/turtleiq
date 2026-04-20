@@ -20,12 +20,12 @@ export const users = pgTable('users', {
     .$defaultFn(() => crypto.randomUUID()),
   name: text('name'),
   email: text('email').notNull().unique(),
-  emailVerified: timestamp('email_verified', { mode: 'date' }),
+  emailVerified: timestamp('email_verified', { mode: 'date', withTimezone: true }),
   image: text('image'),
   // Email/password auth — null for OAuth-only users
   passwordHash: text('password_hash'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
 export const accounts = pgTable(
@@ -53,7 +53,7 @@ export const sessions = pgTable('sessions', {
   userId: text('user_id')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
-  expires: timestamp('expires', { mode: 'date' }).notNull(),
+  expires: timestamp('expires', { mode: 'date', withTimezone: true }).notNull(),
 })
 
 export const verificationTokens = pgTable(
@@ -61,7 +61,7 @@ export const verificationTokens = pgTable(
   {
     identifier: text('identifier').notNull(),
     token: text('token').notNull(),
-    expires: timestamp('expires', { mode: 'date' }).notNull(),
+    expires: timestamp('expires', { mode: 'date', withTimezone: true }).notNull(),
   },
   (t) => [primaryKey({ columns: [t.identifier, t.token] })]
 )
@@ -79,9 +79,9 @@ export const passwordResetTokens = pgTable('password_reset_tokens', {
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
   token: text('token').notNull().unique(),
-  expiresAt: timestamp('expires_at', { mode: 'date' }).notNull(),
-  usedAt: timestamp('used_at', { mode: 'date' }),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { mode: 'date', withTimezone: true }).notNull(),
+  usedAt: timestamp('used_at', { mode: 'date', withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
 // ---------------------------------------------------------------------------
@@ -99,8 +99,8 @@ export const subjects = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
-    createdAt: timestamp('created_at').notNull().defaultNow(),
-    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [unique().on(t.userId, t.name)]
 )
@@ -116,8 +116,8 @@ export const topics = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
-    createdAt: timestamp('created_at').notNull().defaultNow(),
-    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [unique().on(t.userId, t.name)]
 )
@@ -133,8 +133,8 @@ export const tags = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
-    createdAt: timestamp('created_at').notNull().defaultNow(),
-    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [unique().on(t.userId, t.name)]
 )
@@ -161,8 +161,8 @@ export const concepts = pgTable('concepts', {
     .default('MEDIUM'),
   reviewCount: integer('review_count').notNull().default(0),
   pinned: boolean('pinned').notNull().default(false),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
 // M:M junction tables
@@ -221,7 +221,7 @@ export const subjectConceptOrders = pgTable(
       .notNull()
       .references(() => concepts.id, { onDelete: 'cascade' }),
     position: integer('position').notNull(),
-    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.userId, t.subjectId, t.conceptId] })]
 )
@@ -240,7 +240,7 @@ export const subjectSortModes = pgTable(
     mode: text('mode', { enum: ['alpha', 'date', 'custom'] })
       .notNull()
       .default('alpha'),
-    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.userId, t.subjectId] })]
 )
@@ -257,5 +257,5 @@ export const studySessions = pgTable('study_sessions', {
   subjectId: text('subject_id').references(() => subjects.id, {
     onDelete: 'set null',
   }),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })

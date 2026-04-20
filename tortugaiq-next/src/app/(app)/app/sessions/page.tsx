@@ -25,6 +25,14 @@ function formatDate(date: Date): string {
   })
 }
 
+function formatTime(date: Date): string {
+  return new Date(date).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  })
+}
+
 function formatTotalTime(minutes: number): string {
   if (minutes < 60) return `${minutes} min`
   const h = Math.floor(minutes / 60)
@@ -184,10 +192,15 @@ export default function SessionsPage() {
 
                 <span className="text-gray-300 flex-shrink-0">·</span>
 
-                {/* Date */}
-                <span className="text-sm text-gray-400 flex-shrink-0">
-                  {formatDate(session.createdAt)}
-                </span>
+                {/* Date + Time */}
+                <div className="flex flex-col items-end flex-shrink-0">
+                  <span className="text-sm text-gray-400 leading-tight">
+                    {formatDate(session.createdAt)}
+                  </span>
+                  <span className="text-xs text-gray-300 leading-tight">
+                    {formatTime(session.createdAt)}
+                  </span>
+                </div>
 
                 <div className="flex-1" />
 

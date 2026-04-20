@@ -424,7 +424,7 @@ export default function IndexMode() {
                     <span
                       className={`text-sm leading-snug min-w-0 transition-colors ${
                         isFocused
-                          ? 'text-blue-700 font-medium line-clamp-3 break-words'
+                          ? 'text-blue-700 font-medium break-words'
                           : 'truncate text-gray-700'
                       }`}
                       title={isFocused ? undefined : c.name}
@@ -432,11 +432,31 @@ export default function IndexMode() {
                       {c.name}
                     </span>
                     {(c.reviewCount !== undefined && c.reviewCount !== null) && (
-                      <span className={`text-[10px] tabular-nums flex-shrink-0 leading-none ml-2 transition-colors ${
-                        isFocused ? 'text-blue-400' : 'text-gray-400'
-                      }`}>
-                        {c.reviewCount}
-                      </span>
+                      isFocused ? (
+                        <span className="flex items-center gap-0.5 ml-1 flex-shrink-0">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); decrementMut.mutate(c.id) }}
+                            className="text-blue-400 hover:text-blue-600 active:text-blue-600 w-4 h-4 flex items-center justify-center text-xs leading-none rounded"
+                            aria-label="Decrease review count"
+                          >
+                            −
+                          </button>
+                          <span className="text-[10px] tabular-nums text-blue-400 w-4 text-center">
+                            {c.reviewCount}
+                          </span>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); incrementMut.mutate(c.id) }}
+                            className="text-blue-400 hover:text-blue-600 active:text-blue-600 w-4 h-4 flex items-center justify-center text-xs leading-none rounded"
+                            aria-label="Increase review count"
+                          >
+                            +
+                          </button>
+                        </span>
+                      ) : (
+                        <span className="text-[10px] tabular-nums flex-shrink-0 leading-none ml-2 text-gray-400">
+                          {c.reviewCount}
+                        </span>
+                      )
                     )}
                   </div>
                 )
