@@ -53,8 +53,8 @@ interface Props {
   /** Controlled editing state — when provided, lifts isEditing up to the parent (MvkDrawer) */
   isEditing?: boolean
   onEditChange?: (v: boolean) => void
-  /** MouseDown handler for drag-to-resize — when provided, a drag strip is rendered inside the edit toolbar */
-  onResizeMouseDown?: (e: React.MouseEvent) => void
+  /** PointerDown handler for drag-to-resize — when provided, a drag strip is rendered inside the edit toolbar */
+  onResizePointerDown?: (e: React.PointerEvent) => void
 }
 
 /**
@@ -69,7 +69,7 @@ export default function InlineEditor({
   onSave,
   isEditing: isEditingProp,
   onEditChange,
-  onResizeMouseDown,
+  onResizePointerDown,
 }: Props) {
   const [isEditingInternal, setIsEditingInternal] = useState(false)
   // Use controlled state when parent provides it, otherwise use internal state
@@ -132,10 +132,10 @@ export default function InlineEditor({
     return (
       <div className="relative bg-white overflow-hidden flex flex-col h-full">
         {/* Drag strip — thin resize handle only, no full bar */}
-        {onResizeMouseDown && (
+        {onResizePointerDown && (
           <div
-            onMouseDown={onResizeMouseDown}
-            className="flex-shrink-0 h-3 cursor-ns-resize flex items-center justify-center group/handle select-none"
+            onPointerDown={onResizePointerDown}
+            className="flex-shrink-0 h-3 cursor-ns-resize flex items-center justify-center group/handle select-none touch-none"
             aria-hidden="true"
           >
             <div className="w-8 h-0.5 rounded-full bg-gray-200 group-hover/handle:bg-gray-300 transition-colors duration-150" />
@@ -144,7 +144,7 @@ export default function InlineEditor({
         {/* Floating Edit button — positioned where it sat in the former top bar */}
         <button
           onClick={startEdit}
-          className="absolute top-2 right-4 z-10 text-xs font-medium px-2.5 py-1 border border-gray-200 rounded bg-white text-blue-600 hover:border-blue-300 hover:text-blue-700 transition-colors shadow-sm"
+          className="absolute top-2 right-4 z-10 text-xs font-medium px-2.5 py-1 border border-gray-200 rounded bg-transparent text-blue-600 hover:border-blue-300 hover:text-blue-700 transition-colors"
         >
           Edit
         </button>
@@ -177,10 +177,10 @@ export default function InlineEditor({
       {/* Unified edit-mode header: drag affordance overlaid at top, controls centered in full height */}
       <div className="relative flex items-center flex-shrink-0 bg-white border-b border-gray-100 h-10 px-4">
         {/* Drag sub-strip — absolute overlay at top edge; buttons remain centered in full h-10 */}
-        {onResizeMouseDown && (
+        {onResizePointerDown && (
           <div
-            onMouseDown={onResizeMouseDown}
-            className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize flex items-center justify-center group/editdrag select-none"
+            onPointerDown={onResizePointerDown}
+            className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize flex items-center justify-center group/editdrag select-none touch-none"
             aria-hidden="true"
           >
             <div className="w-8 h-0.5 rounded-full bg-gray-200 group-hover/editdrag:bg-gray-300 transition-colors duration-150" />
@@ -207,15 +207,20 @@ export default function InlineEditor({
             <button
               onClick={() => setShowHelp(true)}
               className="text-xs text-gray-500 hover:text-blue-600 font-medium transition-colors"
+              aria-label="Markdown Help"
+              title="Markdown Help"
             >
-              Markdown Help
+              <span className="hidden sm:inline">Markdown Help</span>
+              <span className="sm:hidden inline-flex items-center justify-center w-5 h-5 rounded border border-gray-200 text-gray-500 text-[11px] font-bold leading-none" aria-hidden="true">?</span>
             </button>
             <div className="w-px h-3.5 bg-gray-200 flex-shrink-0" />
             <button
               onClick={handleCancel}
               className="text-xs text-gray-500 hover:text-gray-700 font-medium px-2.5 py-1 border border-gray-200 rounded bg-white transition-colors"
+              title="Cancel"
             >
-              Cancel
+              <span className="hidden sm:inline">Cancel</span>
+              <span className="sm:hidden" aria-hidden="true">✕</span>
             </button>
             <button
               onClick={handleSave}

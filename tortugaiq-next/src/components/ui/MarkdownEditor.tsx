@@ -186,15 +186,20 @@ export default function MarkdownEditor({
           <button
             onClick={() => setShowHelp(true)}
             className="text-xs text-gray-400 hover:text-gray-600 font-medium transition-colors"
+            aria-label="Markdown Help"
+            title="Markdown Help"
           >
-            Markdown Help
+            <span className="hidden sm:inline">Markdown Help</span>
+            <span className="sm:hidden inline-flex items-center justify-center w-5 h-5 rounded border border-gray-200 text-gray-400 text-[11px] font-bold leading-none" aria-hidden="true">?</span>
           </button>
           <div className="flex gap-2">
             <button
               onClick={handleCancel}
               className="text-xs text-gray-500 hover:text-gray-700 font-medium px-3 py-1 border border-gray-200 rounded-md bg-white"
+              title="Cancel"
             >
-              Cancel
+              <span className="hidden sm:inline">Cancel</span>
+              <span className="sm:hidden" aria-hidden="true">✕</span>
             </button>
             <button
               onClick={handleSave}

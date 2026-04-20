@@ -345,18 +345,22 @@ function ListConceptRow({ concept, focused, subjects, onFocus, onSaveState, onDe
           )}
         </div>
 
-        <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
-          <StateSelector value={concept.state} onChange={(v) => onUpdateField('state', v)} />
-          <PriorityBadge value={concept.priority} onChange={(v) => onUpdateField('priority', v)} />
-          <ReviewCounter count={concept.reviewCount} onIncrement={onIncrementReview} onDecrement={onDecrementReview} />
-          <PinButton pinned={concept.pinned} onToggle={() => onUpdateField('pinned', !concept.pinned)} />
-          <button
-            onClick={onDelete}
-            className="text-gray-300 hover:text-red-500 transition-colors text-sm leading-none focus:outline-none rounded"
-            aria-label={`Delete concept: ${concept.name}`}
-          >
-            <span aria-hidden="true">✕</span>
-          </button>
+        <div className="flex items-center flex-shrink-0 w-full sm:w-auto justify-between sm:justify-end sm:gap-2">
+          <div className="flex items-center gap-2">
+            <StateSelector value={concept.state} onChange={(v) => onUpdateField('state', v)} />
+            <PriorityBadge value={concept.priority} onChange={(v) => onUpdateField('priority', v)} />
+          </div>
+          <div className="flex items-center gap-2">
+            <ReviewCounter count={concept.reviewCount} onIncrement={onIncrementReview} onDecrement={onDecrementReview} />
+            <PinButton pinned={concept.pinned} onToggle={() => onUpdateField('pinned', !concept.pinned)} />
+            <button
+              onClick={onDelete}
+              className="text-gray-300 hover:text-red-500 transition-colors text-sm leading-none focus:outline-none rounded"
+              aria-label={`Delete concept: ${concept.name}`}
+            >
+              <span aria-hidden="true">✕</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

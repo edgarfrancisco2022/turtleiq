@@ -52,16 +52,17 @@ export default function MvkDrawer({
     }
   }, [panelOpen])
 
-  function handleMouseDown(e: React.MouseEvent) {
+  function handlePointerDown(e: React.PointerEvent) {
     e.preventDefault()
     const startY = e.clientY
     const startH = panelHeight
+    const isTouch = e.pointerType === 'touch'
     currentHeightRef.current = startH
 
     document.body.style.userSelect = 'none'
-    document.body.style.cursor = 'ns-resize'
+    if (!isTouch) document.body.style.cursor = 'ns-resize'
 
-    function onMove(ev: MouseEvent) {
+    function onMove(ev: PointerEvent) {
       const deltaY = startY - ev.clientY  // drag up = positive = taller
       const maxH = window.innerHeight * MAX_HEIGHT_VH
       const newH = Math.min(maxH, Math.max(MIN_HEIGHT, startH + deltaY))
@@ -73,20 +74,20 @@ export default function MvkDrawer({
       document.body.style.userSelect = ''
       document.body.style.cursor = ''
       localStorage.setItem(STORAGE_KEY, String(currentHeightRef.current))
-      document.removeEventListener('mousemove', onMove)
-      document.removeEventListener('mouseup', onUp)
+      document.removeEventListener('pointermove', onMove)
+      document.removeEventListener('pointerup', onUp)
       cleanupRef.current = null
     }
 
     cleanupRef.current = () => {
-      document.removeEventListener('mousemove', onMove)
-      document.removeEventListener('mouseup', onUp)
+      document.removeEventListener('pointermove', onMove)
+      document.removeEventListener('pointerup', onUp)
       document.body.style.userSelect = ''
       document.body.style.cursor = ''
     }
 
-    document.addEventListener('mousemove', onMove)
-    document.addEventListener('mouseup', onUp)
+    document.addEventListener('pointermove', onMove)
+    document.addEventListener('pointerup', onUp)
   }
 
   return (
@@ -110,7 +111,7 @@ export default function MvkDrawer({
               onSave={onSave}
               isEditing={isEditing}
               onEditChange={setIsEditing}
-              onResizeMouseDown={handleMouseDown}
+              onResizePointerDown={handlePointerDown}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center">
