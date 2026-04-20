@@ -5,7 +5,7 @@ import { signIn } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import Link from 'next/link'
-import { signInWithGoogle, signInWithFacebook } from './actions'
+import { signInWithGoogle /*, signInWithFacebook */ } from './actions'
 import Logo from '@/components/ui/Logo'
 
 function SignInContent() {
@@ -82,6 +82,7 @@ function SignInContent() {
               Sign in with Google
             </button>
           </form>
+          {/* Facebook login — disabled until Meta business verification is complete
           <form action={signInWithFacebook}>
             <button
               type="submit"
@@ -93,6 +94,7 @@ function SignInContent() {
               Sign in with Facebook
             </button>
           </form>
+          */}
         </div>
 
         <div className="relative mb-5">

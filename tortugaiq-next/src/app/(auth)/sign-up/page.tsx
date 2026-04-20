@@ -4,7 +4,7 @@ import { useActionState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import Link from 'next/link'
-import { signUpAction, signUpWithGoogle, signUpWithFacebook } from './actions'
+import { signUpAction, signUpWithGoogle /*, signUpWithFacebook */ } from './actions'
 import Logo from '@/components/ui/Logo'
 
 export default function SignUpPage() {
@@ -64,6 +64,7 @@ export default function SignUpPage() {
               Sign up with Google
             </button>
           </form>
+          {/* Facebook signup — disabled until Meta business verification is complete
           <form action={signUpWithFacebook}>
             <button
               type="submit"
@@ -75,6 +76,7 @@ export default function SignUpPage() {
               Sign up with Facebook
             </button>
           </form>
+          */}
         </div>
 
         <div className="relative mb-5">
