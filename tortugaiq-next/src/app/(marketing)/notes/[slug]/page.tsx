@@ -84,6 +84,8 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
         <div className="max-w-6xl mx-auto px-6 flex items-center justify-between text-xs text-gray-400">
           <Logo variant="footer" />
           <div className="flex items-center gap-4">
+            <Link href="/notes" className="hover:text-gray-600 transition-colors">Notes</Link>
+            <Link href="/privacy" className="hover:text-gray-600 transition-colors">Privacy</Link>
             <Link href="/sign-in" className="hover:text-gray-600 transition-colors">Sign in</Link>
             <Link href="/sign-up" className="hover:text-gray-600 transition-colors">Sign up</Link>
           </div>
