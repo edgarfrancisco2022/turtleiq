@@ -93,6 +93,7 @@ export default function LandingPage() {
           <Logo variant="footer" />
           <div className="flex items-center gap-4">
             <Link href="/notes" className="hover:text-gray-600 transition-colors">Notes</Link>
+            <Link href="/privacy" className="hover:text-gray-600 transition-colors">Privacy</Link>
             <Link href="/sign-in" className="hover:text-gray-600 transition-colors">Sign in</Link>
             <Link href="/sign-up" className="hover:text-gray-600 transition-colors">Sign up</Link>
           </div>

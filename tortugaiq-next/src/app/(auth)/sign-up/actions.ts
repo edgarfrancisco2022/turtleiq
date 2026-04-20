@@ -7,6 +7,10 @@ export async function signUpWithGoogle() {
   await signIn('google', { redirectTo: '/app' })
 }
 
+export async function signUpWithFacebook() {
+  await signIn('facebook', { redirectTo: '/app' })
+}
+
 export async function signUpAction(
   _prevState: { error: string; success?: boolean },
   formData: FormData
