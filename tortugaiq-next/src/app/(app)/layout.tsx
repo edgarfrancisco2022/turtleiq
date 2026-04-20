@@ -28,7 +28,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 
       <StudySessionBar
         collapsed={collapsed}
-        onMobileOpen={() => setMobileOpen(true)}
+        onMobileOpen={() => { setMobileOpen(true); setCollapsed(false) }}
       />
 
       {/* Mobile overlay backdrop */}

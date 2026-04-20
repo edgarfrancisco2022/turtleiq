@@ -181,7 +181,7 @@ export default function Sidebar({
   }
 
   const asideClass = [
-    'bg-gray-900 text-gray-300 flex flex-col h-screen fixed left-0 top-0 select-none z-40 transition-all duration-200',
+    'bg-gray-900 text-gray-300 flex flex-col h-dvh fixed left-0 top-0 select-none z-40 transition-all duration-200',
     collapsed ? 'md:w-16' : 'md:w-60',
     mobileOpen ? 'w-72 translate-x-0 shadow-2xl' : 'w-72 -translate-x-full md:translate-x-0',
   ].join(' ')
