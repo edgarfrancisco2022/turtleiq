@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: 'TortugaIQ | Long-term learning',
-  description: 'Personal knowledge management for long-term learning.',
+  description: 'A long-term learning system built on simple concepts.',
 }
 
 export default function RootLayout({
