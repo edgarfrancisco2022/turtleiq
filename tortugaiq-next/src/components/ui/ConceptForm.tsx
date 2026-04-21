@@ -81,10 +81,12 @@ export default function ConceptForm({ concept = null, onClose, onDone }: Props) 
         }
       )
     } else {
-      createMutation.mutate(input, {
-        onSuccess: (id) => onDone(id),
-        onError: () => setError('Failed to create concept.'),
-      })
+      try {
+        const id = await createMutation.mutateAsync(input)
+        onDone(id)
+      } catch {
+        setError('Failed to create concept.')
+      }
     }
   }
 
