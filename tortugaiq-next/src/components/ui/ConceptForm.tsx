@@ -43,13 +43,16 @@ export default function ConceptForm({ concept = null, onClose, onDone }: Props) 
   const [selTags, setSelTags] = useState<string[]>(initTags)
   const [error, setError] = useState('')
 
+  const pending = createMutation.isPending || updateMutation.isPending
+  const backdropMouseDownRef = useRef(false)
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape' && !pending) onClose()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [onClose, pending])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -85,14 +88,11 @@ export default function ConceptForm({ concept = null, onClose, onDone }: Props) 
     }
   }
 
-  const pending = createMutation.isPending || updateMutation.isPending
-  const backdropMouseDownRef = useRef(false)
-
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
       onMouseDown={(e) => { backdropMouseDownRef.current = e.target === e.currentTarget }}
-      onMouseUp={(e) => { if (backdropMouseDownRef.current && e.target === e.currentTarget) onClose() }}
+      onMouseUp={(e) => { if (!pending && backdropMouseDownRef.current && e.target === e.currentTarget) onClose() }}
     >
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
         {/* Header */}
@@ -166,7 +166,8 @@ export default function ConceptForm({ concept = null, onClose, onDone }: Props) 
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 border border-gray-300 text-gray-700 rounded-md py-1.5 text-sm font-medium hover:bg-gray-50 hover:border-gray-400 transition-colors"
+                disabled={pending}
+                className="flex-1 border border-gray-300 text-gray-700 rounded-md py-1.5 text-sm font-medium hover:bg-gray-50 hover:border-gray-400 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>

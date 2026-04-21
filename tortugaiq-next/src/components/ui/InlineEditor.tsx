@@ -149,7 +149,7 @@ export default function InlineEditor({
           Edit
         </button>
         {/* Scrollable content fills full height */}
-        <div className="flex-1 min-h-0 px-4 pt-2 pb-3 overflow-y-auto overscroll-none">
+        <div className="flex-1 min-h-0 px-4 pt-2 pb-3 overflow-auto overscroll-none">
           {content ? (
             <div className="prose prose-xs prose-neutral max-w-none text-sm">
               <ReactMarkdown
@@ -243,7 +243,7 @@ export default function InlineEditor({
           autoFocus
         />
       ) : (
-        <div className="px-4 py-3 overflow-y-auto overscroll-none flex-1 min-h-0 prose prose-xs prose-neutral max-w-none text-sm">
+        <div className="px-4 py-3 overflow-auto overscroll-none flex-1 min-h-0 prose prose-xs prose-neutral max-w-none text-sm">
           {draft ? (
             <ReactMarkdown
               remarkPlugins={MD_PLUGINS.remark}

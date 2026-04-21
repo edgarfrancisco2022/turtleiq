@@ -143,7 +143,7 @@ export default function MarkdownEditor({
             Edit
           </button>
         </div>
-        <div className="p-4 prose prose-sm prose-neutral max-w-none min-h-[64px]">
+        <div className="p-4 prose prose-sm prose-neutral max-w-none min-h-[64px] overflow-x-auto">
           {content ? (
             <ReactMarkdown
               remarkPlugins={MD_PLUGINS.remark}
@@ -224,7 +224,7 @@ export default function MarkdownEditor({
           autoFocus
         />
       ) : (
-        <div className="p-4 prose prose-sm prose-neutral max-w-none min-h-[80px]">
+        <div className="p-4 prose prose-sm prose-neutral max-w-none min-h-[80px] overflow-x-auto">
           {draft ? (
             <ReactMarkdown
               remarkPlugins={MD_PLUGINS.remark}

@@ -106,3 +106,12 @@ input[type="search"]::-webkit-search-cancel-button {
 .prose :not(pre) > code::after {
   content: none;
 }
+
+/* Code blocks and tables: scroll horizontally rather than clip */
+.prose pre {
+  overflow-x: auto;
+}
+.prose table {
+  overflow-x: auto;
+  display: block;
+}
