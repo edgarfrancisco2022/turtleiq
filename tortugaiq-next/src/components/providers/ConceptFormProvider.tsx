@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import ConceptForm from '@/components/ui/ConceptForm'
 import { useViewStateRegistry } from './ViewStateRegistryProvider'
@@ -27,20 +27,11 @@ export function ConceptFormProvider({ children }: { children: React.ReactNode })
   // previous view never flashes through. ConceptView calls closeConceptForm() on
   // mount to drop the backdrop once the new page is actually rendered.
   const [navigating, setNavigating] = useState(false)
-  const [pendingRedirectId, setPendingRedirectId] = useState<string | null>(null)
+  // Ref instead of state so the setTimeout closure can check if navigation was
+  // cancelled (backdrop clicked) before it fires.
+  const pendingRedirectRef = useRef<string | null>(null)
   const router = useRouter()
   const { captureViewState } = useViewStateRegistry()
-
-  // Defer router.push to after React commits all pending state updates (TQ
-  // invalidations + setNavigating). Calling router.push directly in an async
-  // callback races with concurrent re-renders and is silently dropped by
-  // Next.js 15's router in some cases.
-  useEffect(() => {
-    if (pendingRedirectId) {
-      router.push(`/app/concepts/${pendingRedirectId}`)
-      setPendingRedirectId(null)
-    }
-  }, [pendingRedirectId, router])
 
   function openConceptForm(c?: Concept | null) {
     setConcept(c ?? null)
@@ -52,7 +43,7 @@ export function ConceptFormProvider({ children }: { children: React.ReactNode })
     setOpen(false)
     setNavigating(false)
     setConcept(null)
-    setPendingRedirectId(null)
+    pendingRedirectRef.current = null  // cancel any pending macrotask navigation
   }, [])
 
   function handleDone(id: string) {
@@ -63,7 +54,17 @@ export function ConceptFormProvider({ children }: { children: React.ReactNode })
       // mounted (e.g. when creating a second concept from within ConceptView).
       captureViewState()
       setNavigating(true)
-      setPendingRedirectId(id)
+      const target = `/app/concepts/${id}`
+      pendingRedirectRef.current = target
+      // setTimeout(0) schedules router.push as a macrotask — after all current
+      // microtasks (Promise callbacks, React commits, TanStack Query cache
+      // invalidations) are complete. This prevents Next.js 15 from silently
+      // dropping the navigation when called during an ongoing React transition.
+      setTimeout(() => {
+        if (pendingRedirectRef.current === target) {
+          router.push(target)
+        }
+      }, 0)
     } else {
       handleClose()
     }
