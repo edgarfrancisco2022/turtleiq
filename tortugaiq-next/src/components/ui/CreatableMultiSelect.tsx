@@ -71,6 +71,9 @@ export default function CreatableMultiSelect({
     updatePos()
     setIsOpen(true)
     requestAnimationFrame(() => searchInputRef.current?.focus())
+    setTimeout(() => {
+      triggerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }, 150)
   }
 
   function add(value: string) {

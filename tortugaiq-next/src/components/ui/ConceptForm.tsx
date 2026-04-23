@@ -43,6 +43,23 @@ export default function ConceptForm({ concept = null, onClose, onDone }: Props) 
   const [selTags, setSelTags] = useState<string[]>(initTags)
   const [error, setError] = useState('')
 
+  const [viewport, setViewport] = useState(() => ({
+    height: window.visualViewport?.height ?? window.innerHeight,
+    offsetTop: window.visualViewport?.offsetTop ?? 0,
+  }))
+
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!vv) return
+    const update = () => setViewport({ height: vv.height, offsetTop: vv.offsetTop })
+    vv.addEventListener('resize', update)
+    vv.addEventListener('scroll', update)
+    return () => {
+      vv.removeEventListener('resize', update)
+      vv.removeEventListener('scroll', update)
+    }
+  }, [])
+
   const pending = createMutation.isPending || updateMutation.isPending
   const backdropMouseDownRef = useRef(false)
 
@@ -92,11 +109,15 @@ export default function ConceptForm({ concept = null, onClose, onDone }: Props) 
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-x-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      style={{ top: viewport.offsetTop, height: viewport.height }}
       onMouseDown={(e) => { backdropMouseDownRef.current = e.target === e.currentTarget }}
       onMouseUp={(e) => { if (!pending && backdropMouseDownRef.current && e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
+      <div
+        className="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col"
+        style={{ maxHeight: viewport.height - 32 }}
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200 flex-shrink-0">
           <h2 className="text-sm font-semibold text-gray-900 tracking-tight">
