@@ -12,10 +12,20 @@ import ShortcutsHintBar from '@/components/ui/ShortcutsHintBar'
 import { StateSelector, PriorityBadge, ReviewCounter, PinButton, PinIcon } from '@/components/ui/StatusBadge'
 import MvkDrawer from '@/components/ui/MvkDrawer'
 import DeleteConceptDialog from '@/components/ui/DeleteConceptDialog'
+import { sortConcepts } from '@/hooks/useFilterSort'
 import type { FilterState } from '@/hooks/useFilterSort'
-import type { Concept, ConceptState, ConceptPriority } from '@/lib/types'
+import type { Concept, ConceptState, ConceptPriority, SubjectSortMode } from '@/lib/types'
 
-const SUBJECT_SORT_LABELS = { alpha: 'A → Z', date: 'Date added', custom: 'Custom' }
+const SUBJECT_SORT_LABELS: Record<string, string> = {
+  alpha: 'A → Z',
+  alpha_desc: 'Z → A',
+  date_new: 'Newest first',
+  date_old: 'Oldest first',
+  reviews_high: 'Most reviewed',
+  reviews_low: 'Least reviewed',
+  custom: 'Custom',
+}
+const SUBJECT_AVAILABLE_SORTS = ['alpha', 'alpha_desc', 'date_new', 'date_old', 'reviews_high', 'reviews_low', 'custom']
 const SCROLL_KEY  = (sid: string) => `scroll-subject-${sid}`
 const LAST_ID_KEY = (sid: string) => `subject-last-id-${sid}`
 const STATE_KEY   = (sid: string) => `subject-state-${sid}`
@@ -108,8 +118,7 @@ export default function SubjectView() {
       if (filters.pinned && !c.pinned) return false
       return true
     })
-    if (sortMode === 'alpha') return [...filtered].sort((a, b) => a.name.localeCompare(b.name))
-    if (sortMode === 'date') return [...filtered].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+    if (sortMode !== 'custom') return sortConcepts(filtered, sortMode)
     if (sortMode === 'custom') {
       return [...filtered].sort((a, b) => {
         const ia = subjectOrder.indexOf(a.id), ib = subjectOrder.indexOf(b.id)
@@ -190,14 +199,18 @@ export default function SubjectView() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [displayedKey])
 
-  // Scroll focused row into view
+  // Scroll focused row into view — fires only when focus explicitly changes (keyboard
+  // nav, row click, back-nav restore), NOT on every data re-render. This prevents the
+  // active row from being pulled back into view when the user scrolls away and then
+  // clicks +/− on a different concept row.
   useEffect(() => {
     if (suppressScroll.current) return
     const concept = displayed[focusedIdx]
     if (!concept) return
     const el = document.getElementById(`sub-${concept.id}`)
     if (el) el.scrollIntoView({ block: 'nearest', behavior: 'instant' })
-  }, [focusedIdx, displayed])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusedConceptId])
 
   const focusedConcept = displayed[focusedIdx] ?? null
 
@@ -296,12 +309,12 @@ export default function SubjectView() {
         filters={filters}
         sort={sortMode}
         setFilter={setFilter}
-        setSort={(mode) => setSortModeMut.mutate(mode as 'alpha' | 'date' | 'custom')}
+        setSort={(mode) => setSortModeMut.mutate(mode as SubjectSortMode)}
         clearFilters={clearFilters}
         hasActiveFilters={hasActiveFilters}
         topics={topics}
         tags={tags}
-        availableSorts={['alpha', 'date', 'custom']}
+        availableSorts={SUBJECT_AVAILABLE_SORTS}
         availableFilters={['topic', 'tag', 'state', 'priority', 'pinned']}
         sortLabels={SUBJECT_SORT_LABELS}
         resultCount={displayed.length}

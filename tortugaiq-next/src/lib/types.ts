@@ -1,6 +1,6 @@
 export type ConceptState = 'NEW' | 'LEARNING' | 'REVIEWING' | 'MEMORIZING' | 'STORED'
 export type ConceptPriority = 'LOW' | 'MEDIUM' | 'HIGH'
-export type SubjectSortMode = 'alpha' | 'date' | 'custom'
+export type SubjectSortMode = 'alpha' | 'alpha_desc' | 'date_new' | 'date_old' | 'reviews_high' | 'reviews_low' | 'custom'
 
 export interface Subject {
   id: string

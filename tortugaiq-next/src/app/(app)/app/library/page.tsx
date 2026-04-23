@@ -163,14 +163,18 @@ export default function ListMode() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resultsKey])
 
-  // Scroll focused row into view
+  // Scroll focused row into view — fires only when focus explicitly changes (keyboard
+  // nav, row click, back-nav restore), NOT on every data re-render. This prevents the
+  // active row from being pulled back into view when the user scrolls away and then
+  // clicks +/− on a different concept row.
   useEffect(() => {
     if (suppressScroll.current) return
     const concept = results[focusedIdx]
     if (!concept) return
     const el = document.getElementById(`lib-${concept.id}`)
     if (el) el.scrollIntoView({ block: 'nearest', behavior: 'instant' })
-  }, [focusedIdx, filtered])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusedConceptId])
 
   // Keyboard navigation
   const stateRef = useRef({ results, focusedIdx, filters, sort })

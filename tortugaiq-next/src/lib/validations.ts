@@ -94,4 +94,4 @@ export type UpdateStudySessionInput = z.infer<typeof updateStudySessionSchema>
 // Subjects
 // ---------------------------------------------------------------------------
 
-export const sortModeSchema = z.enum(['alpha', 'date', 'custom'])
+export const sortModeSchema = z.enum(['alpha', 'alpha_desc', 'date_new', 'date_old', 'reviews_high', 'reviews_low', 'custom'])

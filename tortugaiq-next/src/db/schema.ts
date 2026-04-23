@@ -237,7 +237,7 @@ export const subjectSortModes = pgTable(
     subjectId: text('subject_id')
       .notNull()
       .references(() => subjects.id, { onDelete: 'cascade' }),
-    mode: text('mode', { enum: ['alpha', 'date', 'custom'] })
+    mode: text('mode', { enum: ['alpha', 'alpha_desc', 'date_new', 'date_old', 'reviews_high', 'reviews_low', 'custom'] })
       .notNull()
       .default('alpha'),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
