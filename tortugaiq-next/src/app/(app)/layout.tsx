@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import Sidebar from '@/components/ui/Sidebar'
 import StudySessionBar from '@/components/ui/StudySessionBar'
 import { ConceptFormProvider, useConceptForm } from '@/components/providers/ConceptFormProvider'
@@ -11,7 +12,13 @@ import { ViewStateRegistryProvider } from '@/components/providers/ViewStateRegis
 function AppShellInner({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const pathname = usePathname()
   const { openConceptForm } = useConceptForm()
+
+  // Auto-close mobile drawer on any route change
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [pathname])
   const { requestNavigation } = useDirtyState()
 
   const mainLeft = `${collapsed ? 'md:pl-16' : 'md:pl-60'}`
