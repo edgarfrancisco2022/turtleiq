@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import ConceptForm from '@/components/ui/ConceptForm'
 import { useViewStateRegistry } from './ViewStateRegistryProvider'
 import type { Concept } from '@/lib/types'
@@ -32,8 +33,12 @@ export function ConceptFormProvider({ children }: { children: React.ReactNode })
   const pendingRedirectRef = useRef<string | null>(null)
   const router = useRouter()
   const { captureViewState } = useViewStateRegistry()
+  const qc = useQueryClient()
 
   function openConceptForm(c?: Concept | null) {
+    qc.invalidateQueries({ queryKey: ['subjects'] })
+    qc.invalidateQueries({ queryKey: ['topics'] })
+    qc.invalidateQueries({ queryKey: ['tags'] })
     setConcept(c ?? null)
     setOpen(true)
     setNavigating(false)
