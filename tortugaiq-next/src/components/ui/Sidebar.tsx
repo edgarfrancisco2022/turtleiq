@@ -121,6 +121,10 @@ function NavItem({
       href={href}
       title={title}
       onClick={(e) => {
+        // Clear any stale back-navigation state so the destination view always
+        // starts fresh (scroll at top, first concept active) on sidebar nav.
+        sessionStorage.removeItem('cv-back')
+        ;(window as any).__cvBackPending = false
         if (isDirty) {
           e.preventDefault()
           requestNavigation(() => {
@@ -208,6 +212,8 @@ export default function Sidebar({
               className="hover:opacity-80 transition-opacity focus:outline-none"
               aria-label="TortugaIQ home"
               onClick={(e) => {
+                sessionStorage.removeItem('cv-back')
+                ;(window as any).__cvBackPending = false
                 if (isDirty) {
                   e.preventDefault()
                   requestNavigation(() => router.push('/app'))
@@ -404,6 +410,8 @@ function SubjectLink({
     <Link
       href={href}
       onClick={(e) => {
+        sessionStorage.removeItem('cv-back')
+        ;(window as any).__cvBackPending = false
         if (isDirty) {
           e.preventDefault()
           requestNavigation(() => {

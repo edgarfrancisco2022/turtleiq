@@ -47,10 +47,14 @@ export default function ListMode() {
   const decrementMut = useDecrementReview()
   const deleteMut = useDeleteConcept()
 
-  // Restore filter/sort state if returning from ConceptView (read before first render)
+  // Restore filter/sort state if returning from ConceptView (read before first render).
+  // Guard with __cvBackPending (in-memory, resets on page load) so a stale cv-back
+  // entry in sessionStorage (e.g. after a hard refresh or cache-served back-nav) never
+  // incorrectly initialises filters from an old session.
   const [savedState] = useState<{ filters: FilterState; sort: string } | null>(() => {
     if (typeof window === 'undefined') return null
     if (!sessionStorage.getItem('cv-back')) return null
+    if (!(window as any).__cvBackPending) return null
     try { return JSON.parse(sessionStorage.getItem(STATE_KEY) || 'null') } catch { return null }
   })
 
@@ -97,14 +101,30 @@ export default function ListMode() {
   const suppressScroll = useRef(false)
   const backRestoring = useRef(false)
 
-  // Scroll to top on mount; restore scroll/focus if returning from ConceptView
+  // Scroll to top on mount; restore scroll/focus if returning from ConceptView.
+  // Uses window.__cvBackPending (in-memory flag, resets on page load) alongside
+  // the sessionStorage cv-back entry to distinguish a genuine back-navigation from
+  // a stale entry left behind when the router cache served the previous view without
+  // remounting it (in which case this component mounts fresh later, e.g. via sidebar).
   useEffect(() => {
     const el = getMain()
     if (el) el.scrollTop = 0
 
     if (sessionStorage.getItem('cv-back')) {
+      const isGenuineBackNav = !!(window as any).__cvBackPending
+      ;(window as any).__cvBackPending = false
+
       sessionStorage.removeItem('cv-back')
       sessionStorage.removeItem(STATE_KEY)
+
+      if (!isGenuineBackNav) {
+        // Stale cv-back (page refresh, cache-served nav, or sidebar arrival) —
+        // discard the saved keys and start fresh.
+        sessionStorage.removeItem(SCROLL_KEY)
+        sessionStorage.removeItem(LAST_ID_KEY)
+        return
+      }
+
       const saved = sessionStorage.getItem(SCROLL_KEY)
       sessionStorage.removeItem(SCROLL_KEY)
       const lastId = sessionStorage.getItem(LAST_ID_KEY)

@@ -47,10 +47,13 @@ function FocusMode() {
 
   const { registerViewStateSaver } = useViewStateRegistry()
 
-  // Restore filter/sort state if returning from ConceptView (read before first render)
+  // Restore filter/sort state if returning from ConceptView (read before first render).
+  // Guard with __cvBackPending so a stale cv-back entry (after a hard refresh or
+  // cache-served back-nav) never incorrectly initialises filters from an old session.
   const [savedState] = useState<{ filters: FilterState; sort: string } | null>(() => {
     if (typeof window === 'undefined') return null
     if (!sessionStorage.getItem('cv-back')) return null
+    if (!(window as any).__cvBackPending) return null
     try { return JSON.parse(sessionStorage.getItem(STATE_KEY) || 'null') } catch { return null }
   })
 
@@ -69,12 +72,17 @@ function FocusMode() {
 
   // On first data load, restore position from the URL ?id= param (back-navigation only).
   // On a fresh page load / refresh, ignore the param and reset to index 0.
+  // Also check __cvBackPending so a stale cv-back entry (e.g. from a prior
+  // cache-served back-nav) doesn't trigger false restoration on a fresh mount.
   const currentId = searchParams.get('id')
   const initializedFromUrlRef = useRef(false)
   useEffect(() => {
     if (!initializedFromUrlRef.current && filtered.length > 0) {
       initializedFromUrlRef.current = true
-      const isBackNav = typeof window !== 'undefined' && !!sessionStorage.getItem('cv-back')
+      const isBackNav =
+        typeof window !== 'undefined' &&
+        !!sessionStorage.getItem('cv-back') &&
+        !!(window as any).__cvBackPending
       if (isBackNav && currentId) {
         const idx = filtered.findIndex((c) => c.id === currentId)
         if (idx > 0) {
@@ -115,14 +123,27 @@ function FocusMode() {
     return registerViewStateSaver(() => saveStateForRegistryRef.current())
   }, [registerViewStateSaver])
 
-  // Scroll to top on mount; restore scroll if returning from ConceptView
+  // Scroll to top on mount; restore scroll if returning from ConceptView.
+  // Uses window.__cvBackPending (in-memory, resets on page load) to distinguish a
+  // genuine back-navigation from a stale cv-back entry left when the router cache
+  // served the previous view without remounting it.
   useEffect(() => {
     const el = getMain()
     if (el) el.scrollTop = 0
 
     if (sessionStorage.getItem('cv-back')) {
+      const isGenuineBackNav = !!(window as any).__cvBackPending
+      ;(window as any).__cvBackPending = false
+
       sessionStorage.removeItem('cv-back')
       sessionStorage.removeItem(STATE_KEY)
+
+      if (!isGenuineBackNav) {
+        // Stale cv-back — discard saved scroll and start fresh.
+        sessionStorage.removeItem(SCROLL_KEY)
+        return
+      }
+
       const saved = sessionStorage.getItem(SCROLL_KEY)
       sessionStorage.removeItem(SCROLL_KEY)
       if (saved) {

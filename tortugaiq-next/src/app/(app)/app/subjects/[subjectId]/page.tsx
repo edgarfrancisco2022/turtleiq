@@ -50,10 +50,13 @@ export default function SubjectView() {
 
   const subject = subjects.find((s) => s.id === subjectId) ?? null
 
-  // Restore filter state if returning from ConceptView (read before first render)
+  // Restore filter state if returning from ConceptView (read before first render).
+  // Guard with __cvBackPending so a stale cv-back entry (after a hard refresh or
+  // cache-served back-nav) never incorrectly initialises filters from an old session.
   const [savedState] = useState<{ filters: FilterState } | null>(() => {
     if (typeof window === 'undefined') return null
     if (!sessionStorage.getItem('cv-back')) return null
+    if (!(window as any).__cvBackPending) return null
     try { return JSON.parse(sessionStorage.getItem(STATE_KEY(subjectId)) || 'null') } catch { return null }
   })
 
@@ -125,14 +128,28 @@ export default function SubjectView() {
     return idx >= 0 ? idx : 0
   }, [displayed, focusedConceptId])
 
-  // Scroll to top on mount; restore scroll/focus if returning from ConceptView
+  // Scroll to top on mount; restore scroll/focus if returning from ConceptView.
+  // Uses window.__cvBackPending (in-memory, resets on page load) to distinguish a
+  // genuine back-navigation from a stale cv-back entry left when the router cache
+  // served the previous view without remounting it.
   useEffect(() => {
     const el = getMain()
     if (el) el.scrollTop = 0
 
     if (sessionStorage.getItem('cv-back')) {
+      const isGenuineBackNav = !!(window as any).__cvBackPending
+      ;(window as any).__cvBackPending = false
+
       sessionStorage.removeItem('cv-back')
       sessionStorage.removeItem(STATE_KEY(subjectId))
+
+      if (!isGenuineBackNav) {
+        // Stale cv-back — discard saved keys and start fresh.
+        sessionStorage.removeItem(SCROLL_KEY(subjectId))
+        sessionStorage.removeItem(LAST_ID_KEY(subjectId))
+        return
+      }
+
       const saved = sessionStorage.getItem(SCROLL_KEY(subjectId))
       sessionStorage.removeItem(SCROLL_KEY(subjectId))
       const lastId = sessionStorage.getItem(LAST_ID_KEY(subjectId))
