@@ -42,6 +42,10 @@ export default function ConceptView() {
     function onKey(e: KeyboardEvent) {
       const t = e.target as HTMLElement
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) || t.contentEditable === 'true') return
+      // Don't navigate while a content save is in-flight. Belt-and-suspenders guard
+      // against stale Backspace keydown events that fire after the textarea unmounts
+      // (e.g. user held Backspace while clicking Save).
+      if (updateContentMut.isPending) return
       if (e.key === 'Backspace') {
         e.preventDefault()
         requestNavigation(() => {
@@ -58,7 +62,7 @@ export default function ConceptView() {
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conceptId, router, requestNavigation])
+  }, [conceptId, router, requestNavigation, updateContentMut.isPending])
 
   if (isLoading) {
     return <ConceptLoading />

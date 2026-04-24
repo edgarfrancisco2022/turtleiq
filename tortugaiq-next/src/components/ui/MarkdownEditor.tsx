@@ -81,6 +81,14 @@ export default function MarkdownEditor({
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === 'Backspace') {
+      // Stop Backspace from bubbling to the document-level keyboard handler in
+      // ConceptView, which would trigger back navigation. Without this, if the
+      // user holds Backspace while clicking Save, the textarea unmounts and the
+      // browser fires another keydown on the body — bypassing the textarea guard
+      // in the document listener and causing an unintended router.back().
+      e.stopPropagation()
+    }
     if (e.key === 'Tab') {
       e.preventDefault()
       const ta = e.currentTarget

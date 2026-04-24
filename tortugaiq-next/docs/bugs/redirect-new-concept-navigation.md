@@ -147,11 +147,33 @@ pendingRedirectRef.current = null // cancel even if effect already queued
 
 **Why expected to work**: `useEffect` is guaranteed by React to fire only after the component tree has been fully committed to the DOM — including all batched state updates (`setNavigating(true)`, TQ cache updates from `openConceptForm`'s invalidations, and TQ's mutation `onSettled` callbacks). At that point, React is not in any update cycle, and `router.push` cannot be dropped.
 
-**Result**: TBD — deployed 2026-04-24.
+**Result**: TBD — not yet verified in testing as of 2026-04-24.
 
 ---
 
-## If Attempt 5 Also Fails — Next Things to Try
+## Attempt 6 (current) — 2026-04-24
+
+**What changed**: Wrapped `router.push` in `startTransition` inside the `useEffect`. All other state/ref logic from Attempt 5 is unchanged.
+
+```typescript
+const [, startTransition] = useTransition()
+
+useEffect(() => {
+  if (!pendingTarget) return
+  if (pendingRedirectRef.current !== pendingTarget) return
+  startTransition(() => router.push(pendingTarget))
+}, [pendingTarget])
+```
+
+**Why expected to work**: `startTransition` in React 19 explicitly registers the navigation as a concurrent transition, giving it the correct priority within the scheduler and preventing it from being silently dropped when TanStack Query's cache-update batch is being processed. This is the mechanism recommended in the React 19 docs for integrating third-party navigation with concurrent features.
+
+**How this relates to Attempt 5**: Attempt 5 guaranteed the effect fires *after* React commits. Attempt 6 additionally guarantees the `router.push` call *inside* the effect is treated correctly by React's scheduler. Together they cover both the "wrong time to call" and "wrong context to call in" failure modes.
+
+**Result**: TBD — deployed 2026-04-24. Coincides with the markdown-editor-redirect-on-save fix; both were deployed together.
+
+---
+
+## If Attempt 6 Also Fails — Next Things to Try
 
 If the bug persists after Attempt 5, investigate these directions:
 

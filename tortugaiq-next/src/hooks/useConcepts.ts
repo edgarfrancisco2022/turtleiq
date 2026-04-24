@@ -137,7 +137,12 @@ export function useUpdateConceptContent() {
       value: string
     }) => updateConceptContent(id, field, value),
     onSuccess: (_, { id }) => {
-      qc.invalidateQueries({ queryKey: ['concepts'] })
+      // Only invalidate the specific concept — content fields (mvkNotes,
+      // markdownNotes, referencesMarkdown) are not shown in list views, so
+      // the broad ['concepts'] list cache does not need to be invalidated.
+      // A broad invalidation here creates unnecessary React update batches
+      // that can interact badly with the Next.js 15 / React 19 navigation
+      // scheduler (same race condition as the redirect-new-concept-navigation bug).
       qc.invalidateQueries({ queryKey: ['concepts', id] })
     },
   })
