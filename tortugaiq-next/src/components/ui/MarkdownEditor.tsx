@@ -2,47 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import remarkMath from 'remark-math'
-import rehypeKatex from 'rehype-katex'
 import MarkdownHelpPanel from './MarkdownHelpPanel'
 import { useDirtyState } from '@/components/providers/DirtyStateProvider'
-
-// Custom remark plugin: transforms ==text== into <mark>text</mark> via HAST hName
-function remarkMark() {
-  return (tree: any) => {
-    function processNode(node: any) {
-      if (!node.children) return
-      const newChildren: any[] = []
-      for (const child of node.children) {
-        if (child.type === 'text' && child.value.includes('==')) {
-          const parts = child.value.split(/(==[^=\n]+?==)/)
-          for (const part of parts) {
-            if (part.startsWith('==') && part.endsWith('==') && part.length > 4) {
-              newChildren.push({
-                type: 'mark',
-                data: { hName: 'mark' },
-                children: [{ type: 'text', value: part.slice(2, -2) }],
-              })
-            } else if (part) {
-              newChildren.push({ type: 'text', value: part })
-            }
-          }
-        } else {
-          processNode(child)
-          newChildren.push(child)
-        }
-      }
-      node.children = newChildren
-    }
-    processNode(tree)
-  }
-}
-
-const MD_PLUGINS = {
-  remark: [remarkGfm, remarkMath, remarkMark],
-  rehype: [rehypeKatex],
-}
+import { MD_PLUGINS, mdComponents } from '@/lib/md-config'
 
 export const MVK_PLACEHOLDER = `Write the smallest useful representation of this concept in your own words. Keep it tiny, intuitive and easy to remember: a simple example, a couple keywords, a micro synthesis, a mini diagram, an image...`
 
@@ -148,6 +110,7 @@ export default function MarkdownEditor({
             <ReactMarkdown
               remarkPlugins={MD_PLUGINS.remark}
               rehypePlugins={MD_PLUGINS.rehype}
+              components={mdComponents}
             >
               {content}
             </ReactMarkdown>
@@ -229,6 +192,7 @@ export default function MarkdownEditor({
             <ReactMarkdown
               remarkPlugins={MD_PLUGINS.remark}
               rehypePlugins={MD_PLUGINS.rehype}
+              components={mdComponents}
             >
               {draft}
             </ReactMarkdown>

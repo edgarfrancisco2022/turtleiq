@@ -29,6 +29,16 @@ html, body {
   overscroll-behavior: none;
 }
 
+/* Mermaid diagrams — prevent overflow inside prose areas */
+.prose .mermaid {
+  overflow-x: auto;
+  max-width: 100%;
+}
+.prose .mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
 /* Slim, dark-themed scrollbar to match sidebar and dark UI surfaces */
 * {
   scrollbar-width: thin;

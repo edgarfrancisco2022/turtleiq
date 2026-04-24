@@ -2,45 +2,7 @@
 
 import { createPortal } from 'react-dom'
 import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import remarkMath from 'remark-math'
-import rehypeKatex from 'rehype-katex'
-
-// Mirrors the remarkMark plugin in MarkdownEditor so previews match actual rendering
-function remarkMark() {
-  return (tree: any) => {
-    function processNode(node: any) {
-      if (!node.children) return
-      const newChildren: any[] = []
-      for (const child of node.children) {
-        if (child.type === 'text' && child.value.includes('==')) {
-          const parts = child.value.split(/(==[^=\n]+?==)/)
-          for (const part of parts) {
-            if (part.startsWith('==') && part.endsWith('==') && part.length > 4) {
-              newChildren.push({
-                type: 'mark',
-                data: { hName: 'mark' },
-                children: [{ type: 'text', value: part.slice(2, -2) }],
-              })
-            } else if (part) {
-              newChildren.push({ type: 'text', value: part })
-            }
-          }
-        } else {
-          processNode(child)
-          newChildren.push(child)
-        }
-      }
-      node.children = newChildren
-    }
-    processNode(tree)
-  }
-}
-
-const MD_PLUGINS = {
-  remark: [remarkGfm, remarkMath, remarkMark],
-  rehype: [rehypeKatex],
-}
+import { MD_PLUGINS, mdComponents } from '@/lib/md-config'
 
 const EQ = () => <span style={{ fontFamily: 'Courier New, Courier, monospace' }}>==</span>
 
@@ -77,6 +39,19 @@ const HELP_SECTIONS = [
     items: [
       { label: 'Inline Math', example: '$x^2$' },
       { label: 'Block Math', example: '$$\n\\int_0^1 x^2 \\, dx\n$$' },
+    ],
+  },
+  {
+    title: 'Diagrams',
+    items: [
+      {
+        label: 'Flowchart',
+        example: '```mermaid\nflowchart LR\n  A[Start] --> B{Choice}\n  B -- Yes --> C[Done]\n  B -- No --> D[Skip]\n```',
+      },
+      {
+        label: 'Sequence',
+        example: '```mermaid\nsequenceDiagram\n  Alice->>Bob: Hello\n  Bob-->>Alice: Hi!\n```',
+      },
     ],
   },
 ]
@@ -138,11 +113,13 @@ export default function MarkdownHelpPanel({ onClose }: { onClose: () => void }) 
                       [&_hr]:my-1
                       [&_.katex-display]:my-0
                       [&_img]:max-h-14 [&_img]:w-auto
+                      [&_.mermaid]:max-h-32 [&_.mermaid_svg]:w-auto
                     ">
                       <ReactMarkdown
                         remarkPlugins={MD_PLUGINS.remark}
                         rehypePlugins={MD_PLUGINS.rehype}
                         components={{
+                          ...mdComponents,
                           a: ({ href, children }) => (
                             <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>
                           ),
