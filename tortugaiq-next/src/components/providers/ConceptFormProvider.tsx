@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useCallback, useContext, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import ConceptForm from '@/components/ui/ConceptForm'
@@ -28,12 +28,28 @@ export function ConceptFormProvider({ children }: { children: React.ReactNode })
   // previous view never flashes through. ConceptView calls closeConceptForm() on
   // mount to drop the backdrop once the new page is actually rendered.
   const [navigating, setNavigating] = useState(false)
-  // Ref instead of state so the setTimeout closure can check if navigation was
-  // cancelled (backdrop clicked) before it fires.
+  // State to trigger the navigation useEffect. Using state (not just a ref) ensures
+  // the effect fires after React fully commits — the key difference from setTimeout(0)
+  // which can still interleave with the React scheduler's MessageChannel tasks.
+  const [pendingTarget, setPendingTarget] = useState<string | null>(null)
+  // Ref for cancellation: if the user clicks the backdrop before the effect fires,
+  // handleClose nulls this ref and the effect becomes a no-op.
   const pendingRedirectRef = useRef<string | null>(null)
   const router = useRouter()
   const { captureViewState } = useViewStateRegistry()
   const qc = useQueryClient()
+
+  // Navigate after React fully commits all pending state (setNavigating, TQ cache
+  // updates). No setState inside this effect — calling setState inside a useEffect
+  // schedules an immediate re-render right after router.push fires, which recreates
+  // the same timing conflict we're trying to avoid (that's why a5a9e7b was reverted).
+  useEffect(() => {
+    if (!pendingTarget) return
+    if (pendingRedirectRef.current !== pendingTarget) return  // cancelled by handleClose
+    router.push(pendingTarget)
+  // router is a stable singleton in Next.js 15; omitting it avoids spurious re-fires
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingTarget])
 
   function openConceptForm(c?: Concept | null) {
     qc.invalidateQueries({ queryKey: ['subjects'] })
@@ -48,7 +64,8 @@ export function ConceptFormProvider({ children }: { children: React.ReactNode })
     setOpen(false)
     setNavigating(false)
     setConcept(null)
-    pendingRedirectRef.current = null  // cancel any pending macrotask navigation
+    setPendingTarget(null)            // cancel pending useEffect navigation
+    pendingRedirectRef.current = null // cancel even if effect is already queued
   }, [])
 
   function handleDone(id: string) {
@@ -61,15 +78,9 @@ export function ConceptFormProvider({ children }: { children: React.ReactNode })
       setNavigating(true)
       const target = `/app/concepts/${id}`
       pendingRedirectRef.current = target
-      // setTimeout(0) schedules router.push as a macrotask — after all current
-      // microtasks (Promise callbacks, React commits, TanStack Query cache
-      // invalidations) are complete. This prevents Next.js 15 from silently
-      // dropping the navigation when called during an ongoing React transition.
-      setTimeout(() => {
-        if (pendingRedirectRef.current === target) {
-          router.push(target)
-        }
-      }, 0)
+      // Trigger the useEffect above. The effect fires after React commits this
+      // render, guaranteeing router.push is called outside any React update cycle.
+      setPendingTarget(target)
     } else {
       handleClose()
     }
