@@ -147,11 +147,11 @@ pendingRedirectRef.current = null // cancel even if effect already queued
 
 **Why expected to work**: `useEffect` is guaranteed by React to fire only after the component tree has been fully committed to the DOM — including all batched state updates (`setNavigating(true)`, TQ cache updates from `openConceptForm`'s invalidations, and TQ's mutation `onSettled` callbacks). At that point, React is not in any update cycle, and `router.push` cannot be dropped.
 
-**Result**: TBD — not yet verified in testing as of 2026-04-24.
+**Result**: TBD — superseded by Attempt 6 on the same day without separate verification.
 
 ---
 
-## Attempt 6 (current) — 2026-04-24
+## Attempt 6 — 2026-04-24
 
 **What changed**: Wrapped `router.push` in `startTransition` inside the `useEffect`. All other state/ref logic from Attempt 5 is unchanged.
 
@@ -165,32 +165,105 @@ useEffect(() => {
 }, [pendingTarget])
 ```
 
-**Why expected to work**: `startTransition` in React 19 explicitly registers the navigation as a concurrent transition, giving it the correct priority within the scheduler and preventing it from being silently dropped when TanStack Query's cache-update batch is being processed. This is the mechanism recommended in the React 19 docs for integrating third-party navigation with concurrent features.
+**Why expected to work**: `startTransition` in React 19 explicitly registers the navigation as a concurrent transition, giving it the correct priority within the scheduler and preventing it from being silently dropped when TanStack Query's cache-update batch is being processed.
 
-**How this relates to Attempt 5**: Attempt 5 guaranteed the effect fires *after* React commits. Attempt 6 additionally guarantees the `router.push` call *inside* the effect is treated correctly by React's scheduler. Together they cover both the "wrong time to call" and "wrong context to call in" failure modes.
-
-**Result**: TBD — deployed 2026-04-24. Coincides with the markdown-editor-redirect-on-save fix; both were deployed together.
+**Result**: **Still failing in production** — confirmed 2026-04-26. Specific reproduction: user on ConceptView creates a new concept → stays on original ConceptView instead of redirecting to new concept. Especially reproducible when markdown content was edited/saved on the original concept before creating the new one.
 
 ---
 
-## If Attempt 6 Also Fails — Next Things to Try
+## New Finding: Markdown Editor Interactions as a Trigger (2026-04-26)
 
-If the bug persists after Attempt 5, investigate these directions:
+Investigation revealed a concrete causal link between MarkdownEditor interactions and the redirect failure.
 
-1. **Wrap `router.push` in `startTransition`** inside the `useEffect`. In React 19, `startTransition` explicitly integrates with the concurrent scheduler. If `router.push` is being dropped because Next.js's internal navigation transition conflicts with a TQ transition, wrapping it would serialize them.
+### Why `startTransition` is counterproductive
+
+`startTransition` marks the navigation as **low-priority** in React 19's concurrent scheduler. Low-priority transitions are interruptible — React will pause them to process higher-priority work.
+
+TanStack Query v5 uses `useSyncExternalStore` internally, meaning its cache state notifications to React subscribers fire **synchronously** (high priority). Every `qc.invalidateQueries` call triggers a synchronous notification chain.
+
+The failure mode with Attempt 6:
+
+1. `startTransition(() => router.push(NEW_ID))` — navigation starts as **low-priority** transition
+2. Any `qc.invalidateQueries` call that fires **after step 1** triggers a synchronous (high-priority) TQ subscriber notification
+3. React preempts the low-priority navigation to process the high-priority update
+4. The navigation transition is interrupted — Next.js silently drops it
+
+The `useEffect` alone (without `startTransition`) already guarantees `router.push` fires post-commit with no active React update cycle. `startTransition` was not needed and actively made the navigation preemptable.
+
+### How markdown editing specifically triggers this
+
+`useUpdateConceptContent` fires `qc.invalidateQueries({ queryKey: ['concepts', conceptId] })` in its `onSuccess`. If the user:
+
+1. Saves markdown content on ConceptView[OLD_ID] → content mutation in-flight
+2. Opens form and creates a new concept (before content save resolves)
+3. Create mutation resolves → `handleDone(NEW_ID)` → `startTransition(() => router.push(NEW_ID))`
+4. Content mutation resolves → `qc.invalidateQueries({ queryKey: ['concepts', OLD_ID] })`
+5. TQ fires synchronous notification → React schedules high-priority update
+6. High-priority update **interrupts** the navigation transition → redirect dropped
+
+Any other in-flight mutation (e.g., field update from state/priority dropdown, review counter) causes the same problem.
+
+### Secondary: MarkdownEditor state persists across same-route navigation (separate bug)
+
+When navigating from ConceptView[OLD_ID] to ConceptView[NEW_ID], Next.js App Router reuses the ConceptView component instance (same `[conceptId]` route segment). MarkdownEditor components are NOT unmounted — they re-render with new `content` props while retaining `isEditing` and `draft` state. A user landing on a new concept can find the previous concept's editor still open in edit mode, with stale dirty state that affects subsequent navigation guards.
+
+Fixed separately (see Attempt 7 below) with `key={conceptId}` on each MarkdownEditor.
+
+---
+
+## Attempt 7 (current) — 2026-04-26
+
+**What changed**: Removed `startTransition` (and `useTransition`) from ConceptFormProvider entirely. The `useEffect` is kept unchanged — it remains the correct mechanism for post-commit navigation.
+
+```typescript
+// useTransition import and hook removed
+
+useEffect(() => {
+  if (!pendingTarget) return
+  if (pendingRedirectRef.current !== pendingTarget) return  // cancelled by handleClose
+  router.push(pendingTarget)
+  // No startTransition: navigation runs at normal priority and cannot be preempted
+  // by TQ's synchronous subscriber notifications.
+}, [pendingTarget])
+```
+
+**Also changed**: Added `key={conceptId}` to each MarkdownEditor in ConceptView to discard `isEditing`/`draft` state on same-route navigation (secondary fix).
+
+**Why expected to work**: `useEffect` fires after the commit phase — React is idle, no update cycle is active. `router.push` runs at normal priority. Normal-priority work is not preemptable by other normal-priority work, and TQ's `useSyncExternalStore` notifications schedule normal React renders rather than synchronous interrupts at this point (they can only interrupt *transitions*, not normal renders).
+
+The `useEffect` timing guarantee alone is what was needed all along. `startTransition` in Attempt 6 was added based on the correct intuition that the scheduler was the problem, but it solved the wrong half: instead of preventing navigation from running during a React update (which `useEffect` already handles), it made navigation interruptible by updates that fire *after* it starts.
+
+**Result**: TBD — deployed 2026-04-26.
+
+---
+
+## If Attempt 7 Also Fails — Next Things to Try
+
+1. **Pathname-watch fallback**: Use `usePathname()` in `ConceptFormProvider`. After `setPendingTarget`, if the pathname hasn't changed within ~500ms, call `router.push(pendingTarget)` again as a retry.
 
    ```typescript
-   const [, startTransition] = useTransition()
+   const pathname = usePathname()
+   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
    useEffect(() => {
-     if (!pendingTarget || pendingRedirectRef.current !== pendingTarget) return
-     startTransition(() => router.push(pendingTarget))
+     if (!pendingTarget) return
+     if (pendingRedirectRef.current !== pendingTarget) return
+     router.push(pendingTarget)
+     retryTimeoutRef.current = setTimeout(() => {
+       if (pendingRedirectRef.current === pendingTarget) {
+         router.push(pendingTarget)  // retry
+       }
+     }, 500)
+     return () => {
+       if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current)
+     }
    }, [pendingTarget])
    ```
 
-2. **Check `router.replace` vs `router.push`**: `router.replace` is semantically the right call (the form modal state shouldn't be in history). It might behave differently in edge cases.
+2. **Cancel all in-flight queries before navigating**: Call `qc.cancelQueries()` inside `handleDone` before `setPendingTarget`. This aborts any pending mutations' network requests so their `onSuccess` callbacks never fire.
 
-3. **Add a pathname-watch fallback**: Use `usePathname()` in `ConceptFormProvider` to detect if navigation didn't happen after a timeout, and retry.
+3. **`router.replace` instead of `router.push`**: Semantically more correct (form modal state shouldn't be in history). May behave differently for edge cases in Next.js 15's router.
 
-4. **Instrument in production**: Add a `console.error` or Sentry event inside `handleDone` right before `setPendingTarget`, and another one inside the `useEffect` right before `router.push`, to confirm the effect is actually firing in production when the bug occurs.
+4. **Hard navigation fallback**: Use `window.location.href = target` if `router.push` keeps failing. This is a last resort — forces a full page reload, losing client state.
 
-5. **Inspect TanStack Query mutation definition**: Read `src/hooks/useConcepts.ts` to see what `onSuccess`/`onSettled` the create mutation has. If it uses `startTransition` internally or triggers aggressive invalidations, those could be the source of the race.
+5. **Production instrumentation**: Add `console.error`/Sentry events before `router.push` in the effect and inside ConceptView's `closeConceptForm` effect to confirm whether the effect fires but Next.js drops the push, or whether the effect never fires.

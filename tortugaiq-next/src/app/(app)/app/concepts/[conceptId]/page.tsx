@@ -172,6 +172,7 @@ export default function ConceptView() {
       <section className="mb-8 bg-blue-50 border border-blue-100 rounded-xl p-4">
         <h2 className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-3">MVK — Minimum Viable Knowledge</h2>
         <MarkdownEditor
+          key={`${conceptId}-mvk`}
           content={concept.mvkNotes ?? ''}
           placeholder={MVK_PLACEHOLDER}
           hint={MVK_EXAMPLE_HINT}
@@ -182,6 +183,7 @@ export default function ConceptView() {
 
       <Section title="Notes">
         <MarkdownEditor
+          key={`${conceptId}-notes`}
           content={concept.markdownNotes ?? ''}
           placeholder="Add meaningful notes, interesting intuitions, or hard-won insights you may want to revisit later..."
           onSave={(value) => updateContentMut.mutate({ id: conceptId, field: 'markdownNotes', value })}
@@ -190,6 +192,7 @@ export default function ConceptView() {
 
       <Section title="References">
         <MarkdownEditor
+          key={`${conceptId}-refs`}
           content={concept.referencesMarkdown ?? ''}
           placeholder="Add URLs, book references, page numbers, or any source material..."
           onSave={(value) => updateContentMut.mutate({ id: conceptId, field: 'referencesMarkdown', value })}

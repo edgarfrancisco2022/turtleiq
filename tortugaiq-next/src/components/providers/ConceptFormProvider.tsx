@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState, useTransition } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import ConceptForm from '@/components/ui/ConceptForm'
@@ -38,20 +38,20 @@ export function ConceptFormProvider({ children }: { children: React.ReactNode })
   const router = useRouter()
   const { captureViewState } = useViewStateRegistry()
   const qc = useQueryClient()
-  const [, startTransition] = useTransition()
-
   // Navigate after React fully commits all pending state (setNavigating, TQ cache
-  // updates). No setState inside this effect — calling setState inside a useEffect
-  // schedules an immediate re-render right after router.push fires, which recreates
-  // the same timing conflict we're trying to avoid (that's why a5a9e7b was reverted).
-  // startTransition explicitly integrates with React 19's concurrent scheduler so
-  // router.push is not dropped when TQ cache updates are still being processed.
-  // (Attempt 6 — see docs/bugs/redirect-new-concept-navigation.md)
+  // updates). No setState here, no startTransition — useEffect guarantees post-commit
+  // execution: React is idle, no update cycle is active, and router.push runs at normal
+  // priority. startTransition (Attempt 6) was removed because it marks navigation as
+  // low-priority, making it interruptible by TQ's synchronous useSyncExternalStore
+  // subscriber notifications (e.g. qc.invalidateQueries firing from an in-flight
+  // updateContentMut.onSuccess). That was the likely cause of the ongoing failures,
+  // especially when markdown content was saved just before creating a new concept.
+  // (Attempt 7 — see docs/bugs/redirect-new-concept-navigation.md)
   useEffect(() => {
     if (!pendingTarget) return
     if (pendingRedirectRef.current !== pendingTarget) return  // cancelled by handleClose
-    startTransition(() => router.push(pendingTarget))
-  // router and startTransition are stable singletons; omitting avoids spurious re-fires
+    router.push(pendingTarget)
+  // router is a stable singleton; omitting avoids spurious re-fires
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingTarget])
 
