@@ -50,18 +50,20 @@ export function ConceptFormProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (!pendingTarget) return
     if (pendingRedirectRef.current !== pendingTarget) return  // cancelled by handleClose
-    // Cancel in-flight TQ refetches before navigating. useCreateConcept.onSuccess
-    // fires qc.invalidateQueries × 4 right before handleDone runs, starting
-    // refetch network requests. If any response arrives while Next.js is processing
-    // the startTransition-wrapped RSC navigation, TQ fires a useSyncExternalStore
-    // notification → React schedules a high-priority update → the transition is
-    // interrupted → Next.js silently drops router.push.
-    // cancelQueries marks these as cancelled so TQ discards responses without
-    // touching the cache. Queries remain stale and re-fetch on next mount/focus.
-    qc.cancelQueries({ queryKey: ['concepts'] })
-    qc.cancelQueries({ queryKey: ['subjects'] })
-    qc.cancelQueries({ queryKey: ['topics'] })
-    qc.cancelQueries({ queryKey: ['tags'] })
+    console.log('[redirect] useEffect fired', performance.now(), { pendingTarget })
+    // NOTE: cancelQueries returns a Promise — we are NOT awaiting it here.
+    // This means router.push fires before cancellations actually complete.
+    // Logging the resolution time to see how long cancellation takes vs navigation.
+    const cancelStart = performance.now()
+    Promise.all([
+      qc.cancelQueries({ queryKey: ['concepts'] }),
+      qc.cancelQueries({ queryKey: ['subjects'] }),
+      qc.cancelQueries({ queryKey: ['topics'] }),
+      qc.cancelQueries({ queryKey: ['tags'] }),
+    ]).then(() => {
+      console.log('[redirect] cancelQueries resolved', (performance.now() - cancelStart).toFixed(1), 'ms after router.push')
+    })
+    console.log('[redirect] calling router.push', performance.now())
     router.push(pendingTarget)
   // router and qc are stable singletons; omitting avoids spurious re-fires
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -93,6 +95,7 @@ export function ConceptFormProvider({ children }: { children: React.ReactNode })
       captureViewState()
       setNavigating(true)
       const target = `/app/concepts/${id}`
+      console.log('[redirect] handleDone called', performance.now(), { target })
       pendingRedirectRef.current = target
       // Trigger the useEffect above. The effect fires after React commits this
       // render, guaranteeing router.push is called outside any React update cycle.

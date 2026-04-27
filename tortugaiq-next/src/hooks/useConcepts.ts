@@ -58,10 +58,18 @@ export function useCreateConcept() {
   return useMutation({
     mutationFn: (input: ConceptInput) => createConcept(input),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['concepts'] })
-      qc.invalidateQueries({ queryKey: ['subjects'] })
-      qc.invalidateQueries({ queryKey: ['topics'] })
-      qc.invalidateQueries({ queryKey: ['tags'] })
+      console.log('[redirect] useCreateConcept.onSuccess — firing invalidateQueries × 4', performance.now())
+      // refetchType: 'none' marks queries stale WITHOUT starting refetch network requests.
+      // The default refetchType: 'active' would immediately fire Server Action calls
+      // whose responses can arrive mid-transition (100-500ms later on production Neon),
+      // causing TQ's useSyncExternalStore subscribers to fire high-priority React updates
+      // that interrupt Next.js's startTransition-wrapped RSC navigation.
+      // Stale queries will refetch automatically on next component mount or window focus.
+      qc.invalidateQueries({ queryKey: ['concepts'], refetchType: 'none' })
+      qc.invalidateQueries({ queryKey: ['subjects'], refetchType: 'none' })
+      qc.invalidateQueries({ queryKey: ['topics'], refetchType: 'none' })
+      qc.invalidateQueries({ queryKey: ['tags'], refetchType: 'none' })
+      console.log('[redirect] invalidation calls dispatched', performance.now())
     },
   })
 }

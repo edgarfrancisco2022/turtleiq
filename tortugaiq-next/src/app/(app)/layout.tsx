@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import Sidebar from '@/components/ui/Sidebar'
 import StudySessionBar from '@/components/ui/StudySessionBar'
 import { ConceptFormProvider, useConceptForm } from '@/components/providers/ConceptFormProvider'
@@ -14,6 +15,24 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const pathname = usePathname()
   const { openConceptForm } = useConceptForm()
+  const qc = useQueryClient()
+
+  // [DEBUG] Log all TQ cache events to trace race with router.push
+  useEffect(() => {
+    const unsub = qc.getQueryCache().subscribe((event) => {
+      const type = event.type
+      if (['invalidated', 'updated', 'added', 'removed', 'observerAdded', 'observerRemoved'].includes(type)) {
+        console.log('[TQ cache]', type, (event as any).query?.queryKey, performance.now())
+      }
+    })
+    return unsub
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // [DEBUG] Log pathname changes to detect whether navigation commits
+  useEffect(() => {
+    console.log('[redirect] pathname changed to', pathname, performance.now())
+  }, [pathname])
 
   // Auto-close mobile drawer on any route change
   useEffect(() => {

@@ -27,6 +27,7 @@ export default function ConceptView() {
   // Drop the navigation backdrop (from ConceptFormProvider) now that this page is rendered.
   // closeConceptForm is a no-op when no form/backdrop is active.
   useEffect(() => {
+    console.log('[redirect] ConceptView mounted — calling closeConceptForm', performance.now(), { conceptId })
     closeConceptForm()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conceptId])

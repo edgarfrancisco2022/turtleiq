@@ -265,14 +265,65 @@ The stale flag (set by `invalidateQueries` in `onSuccess`) survives the cancella
 
 Cancelling inside the `useEffect` (rather than in `handleDone`) is more precise: cancel and `router.push` execute synchronously back-to-back with no window for new refetches to start between them.
 
-**Result**: TBD — deployed 2026-04-27.
+**Result**: Still failing — confirmed 2026-04-28 via local reproduction.
+
+**Why Attempt 8 fails**: `cancelQueries` is not awaited, so it returns a Promise that is ignored. `router.push` fires immediately — before the cancellations have taken effect. In the local reproduction, the refetch responses for subjects/topics/tags arrived **~22ms after `onSuccess`**, which was **1–3ms before `router.push`**. The cancellation resolved 7–12ms AFTER `router.push` — too late. Furthermore, Server Actions called via TanStack Query do not accept an `AbortSignal`, so `cancelQueries` cannot abort the underlying network request regardless; it only marks the query as cancelled in TQ's state. If a response arrives before TQ processes the cancellation flag, it can still trigger a cache update.
 
 ---
 
-## If Attempt 8 Also Fails — Next Things to Try
+## Debugging Session — 2026-04-28
 
-1. **`router.replace` instead of `router.push`**: Semantically more correct (form modal state shouldn't be in history). May behave differently internally for edge cases.
+Added structured `console.log` instrumentation with `performance.now()` timestamps to:
+- `ConceptFormProvider.tsx` (`handleDone`, `useEffect`)
+- `useConcepts.ts` (`useCreateConcept.onSuccess`)
+- `ConceptView page.tsx` (`closeConceptForm` effect)
+- `app/(app)/layout.tsx` (TQ `QueryCache` subscriber + `pathname` change tracker)
 
-2. **Production instrumentation**: Add Sentry/console events before `router.push` and inside ConceptView's `closeConceptForm` effect to trace exactly where the flow breaks.
+### Key finding from the trace (failing case — creating from `/app/sessions`)
 
-3. **Hard navigation fallback**: Use `window.location.href = target` instead of `router.push`. Forces a full page reload — guaranteed to work but loses client state.
+```
+t=110050.7  useCreateConcept.onSuccess fires → invalidateQueries × 4
+t=110051–53  TQ cache updated × 8 (invalidation notifications — fire BEFORE router.push ✓)
+t=110055.1  handleDone called
+t=110071.1  useEffect fired
+t=110072–74  [TQ cache] updated ['subjects'], ['topics'], ['tags']  ← REFETCH RESPONSES arrive
+t=110075.5  router.push called
+t=110083.1  cancelQueries resolved (7.6ms AFTER router.push — too late)
+```
+
+The refetch responses triggered by `invalidateQueries` in `onSuccess` arrive ~22ms later. With local Server Actions (fast local network), they arrive **before** `router.push`. In production (Neon serverless: 100–500ms round-trip), they arrive **during** the navigation transition and interrupt it.
+
+### Why the local reproduction showed a different symptom
+
+In the local run, the navigation DID commit (pathname changed to the new concept at `t=110331`). But ~193ms later, the app navigated back to `/sessions`. This was caused by **Fast Refresh firing mid-transition** (the dev server detected file changes from the debugging instrumentation added moments before). Fast Refresh + in-flight navigation transition = transition commits but immediately reverts in Next.js dev mode.
+
+In production (no Fast Refresh), the mechanism is different: refetch responses arrive during the transition and TQ's `useSyncExternalStore` notifications interrupt `startTransition`, so the transition is discarded before committing. The user experience (staying on the original page) is the same.
+
+### Comparison of success vs. failure cases
+
+Both successful concept creations (from ConceptView) and the failing case (from /sessions) show TQ cache updates 1–4ms **before** `router.push`. This timing is identical. The local failure was caused by Fast Refresh, not by the TQ updates. The **production** failure is caused by the same refetch responses arriving later (during the transition), not captured in this local log.
+
+---
+
+## Attempt 9 (current) — 2026-04-28
+
+**What changed**: Changed `useCreateConcept.onSuccess` to use `refetchType: 'none'` on all four `invalidateQueries` calls.
+
+```typescript
+onSuccess: () => {
+  qc.invalidateQueries({ queryKey: ['concepts'], refetchType: 'none' })
+  qc.invalidateQueries({ queryKey: ['subjects'], refetchType: 'none' })
+  qc.invalidateQueries({ queryKey: ['topics'], refetchType: 'none' })
+  qc.invalidateQueries({ queryKey: ['tags'], refetchType: 'none' })
+},
+```
+
+**Why expected to work**: `refetchType: 'none'` marks the queries as stale in TQ's cache without starting any network refetch requests. No requests = no responses = no TQ subscriber notifications during the navigation transition. The `startTransition`-wrapped navigation runs uninterrupted to completion.
+
+The stale flag survives the navigation. Queries refetch automatically on the next component mount or window focus:
+- `['concepts']` list: refetches when the user visits Library, SubjectView, or any view that mounts `useConcepts()`
+- `['subjects']`, `['topics']`, `['tags']`: refetch when `ConceptForm` next opens (it always calls `invalidateQueries` for these in `openConceptForm`) or when any view that uses them mounts
+
+The `cancelQueries` calls in the `useEffect` are retained as a secondary safety net (e.g., for any in-flight requests from `openConceptForm`'s `invalidateQueries` calls that may not yet have resolved when the user submits the form).
+
+**Result**: TBD — deployed 2026-04-28.
