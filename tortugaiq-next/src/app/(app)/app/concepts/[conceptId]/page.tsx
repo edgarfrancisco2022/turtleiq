@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useLayoutEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useConcept, useUpdateConceptField, useUpdateConceptContent, useIncrementReview, useDecrementReview } from '@/hooks/useConcepts'
 import { useConceptForm } from '@/components/providers/ConceptFormProvider'
@@ -39,7 +39,12 @@ export default function ConceptView() {
   }, [conceptId])
 
   // Keyboard shortcuts: Backspace = back, +/- = review counter
-  useEffect(() => {
+  // useLayoutEffect (not useEffect) is intentional: layout effects re-register synchronously
+  // after React commits, before the browser paints and before any new browser events can fire.
+  // useEffect defers until after paint — leaving a window where the browser can fire a held
+  // Backspace key-repeat on document.body with the old (stale) listener closure that has
+  // isPending=false, bypassing the isPending guard and causing an unintended router.back().
+  useLayoutEffect(() => {
     function onKey(e: KeyboardEvent) {
       const t = e.target as HTMLElement
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) || t.contentEditable === 'true') return
@@ -63,7 +68,7 @@ export default function ConceptView() {
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conceptId, router, requestNavigation, updateContentMut.isPending])
+  }, [conceptId, router, requestNavigation, updateContentMut.isPending])  // useLayoutEffect dep array
 
   if (isLoading) {
     return <ConceptLoading />

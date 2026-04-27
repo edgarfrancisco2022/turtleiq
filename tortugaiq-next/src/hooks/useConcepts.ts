@@ -148,10 +148,14 @@ export function useUpdateConceptContent() {
       // Only invalidate the specific concept — content fields (mvkNotes,
       // markdownNotes, referencesMarkdown) are not shown in list views, so
       // the broad ['concepts'] list cache does not need to be invalidated.
-      // A broad invalidation here creates unnecessary React update batches
-      // that can interact badly with the Next.js 15 / React 19 navigation
-      // scheduler (same race condition as the redirect-new-concept-navigation bug).
-      qc.invalidateQueries({ queryKey: ['concepts', id] })
+      // refetchType: 'none' marks the query stale WITHOUT starting a network refetch.
+      // The default refetchType: 'active' would immediately fire a Server Action call.
+      // If the user creates a new concept before that response resolves, it arrives
+      // mid-navigation, TQ's useSyncExternalStore fires a high-priority React update,
+      // and Next.js's internal startTransition-wrapped RSC navigation is interrupted
+      // and silently dropped (same race as the redirect-new-concept-navigation bug).
+      // The query refetches automatically on the next component mount or window focus.
+      qc.invalidateQueries({ queryKey: ['concepts', id], refetchType: 'none' })
     },
   })
 }

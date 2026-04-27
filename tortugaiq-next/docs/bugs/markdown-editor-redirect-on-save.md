@@ -87,7 +87,55 @@ if (updateContentMut.isPending) return
 
 Added to ConceptView's keyboard handler before any navigation action. Prevents back-navigation while a content save mutation is in-flight, covering any remaining timing window between `setDirty(false)` and `setIsEditing(false)`.
 
-**Result**: TBD — deployed 2026-04-24.
+**Result**: Partially effective — deployed 2026-04-24. Bug re-observed in production 2026-04-27. Fix #3 (`isPending` guard) has a race condition that prevents it from working reliably (see Attempt 2 below).
+
+---
+
+---
+
+## Fix — Attempt 2 (current) — 2026-04-27
+
+Bug re-confirmed in production after Attempt 1. Root cause: the `isPending` guard from Attempt 1 fix #3 has a race window that makes it unreliable.
+
+### Why the isPending guard fails
+
+The keyboard listener in ConceptView is registered via `useEffect` with `updateContentMut.isPending` in its dependency array. When `handleSave()` runs:
+
+1. `onSave(draft)` → `mutate()` is called → TQ sets `isPending = true` internally in the same render batch
+2. `setIsEditing(false)` → textarea unmounts
+3. React commits the batch — `isPending = true` is now in the component's new render state
+4. **`useEffect` re-registration is deferred until after the browser paints**
+5. The browser fires the next held-Backspace key-repeat on `document.body` (browser events fire after commit, before or around paint)
+6. The **old listener** still has `isPending = false` in its closure — the guard passes
+7. `requestNavigation()` → `router.back()` → unintended redirect
+
+### Two changes made:
+
+### 1. `useEffect` → `useLayoutEffect` for keyboard listener (`concepts/[conceptId]/page.tsx`)
+
+```typescript
+// Before
+useEffect(() => { ... }, [conceptId, router, requestNavigation, updateContentMut.isPending])
+
+// After
+useLayoutEffect(() => { ... }, [conceptId, router, requestNavigation, updateContentMut.isPending])
+```
+
+`useLayoutEffect` fires **synchronously after React commits DOM mutations**, before the browser paints and before any browser events (including key-repeat) can fire. When `isPending` changes to `true` in the commit, the layout effect immediately re-registers the listener with the fresh closure — closing the race window entirely.
+
+### 2. `refetchType: 'none'` on `useUpdateConceptContent.onSuccess` (`useConcepts.ts`)
+
+```typescript
+// Before
+qc.invalidateQueries({ queryKey: ['concepts', id] })
+
+// After
+qc.invalidateQueries({ queryKey: ['concepts', id], refetchType: 'none' })
+```
+
+Previously the content save immediately started a refetch of the specific concept. If the user creates a new concept before that refetch resolves, the response arrives mid-navigation, TQ fires a `useSyncExternalStore` high-priority notification, and Next.js's `startTransition`-wrapped RSC navigation is interrupted — the same cross-bug interaction documented in Attempt 7 of the redirect-new-concept-navigation bug. `refetchType: 'none'` marks the query stale without starting a network request; it refetches automatically on the next mount or window focus.
+
+**Result**: TBD — deployed 2026-04-27.
 
 ---
 
