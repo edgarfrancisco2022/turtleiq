@@ -233,37 +233,46 @@ useEffect(() => {
 
 The `useEffect` timing guarantee alone is what was needed all along. `startTransition` in Attempt 6 was added based on the correct intuition that the scheduler was the problem, but it solved the wrong half: instead of preventing navigation from running during a React update (which `useEffect` already handles), it made navigation interruptible by updates that fire *after* it starts.
 
-**Result**: TBD — deployed 2026-04-26.
+**Result**: **Still failing in production** — confirmed 2026-04-27 in two separate cases.
+
+**Case 1**: User on `/app/sessions` → creates concept with new subject + new tag → stays on sessions. Vercel logs show a `GET /app/concepts/{id}` (RSC payload fetch) but no navigation commits.
+
+**Case 2**: User on `/app/concepts/{old-id}` → creates concept `adae20b5-7d57...` → stays on old concept. Vercel logs show `GET /app/concepts/adae20b5...` (RSC fetch) AND `POST /app/concepts/adae20b5...` (getConcept Server Action from ConceptView rendering inside the doomed transition) — proving ConceptView partially rendered before the transition was interrupted and discarded.
+
+**Why Attempt 7 fails**: The `useEffect` guarantees `router.push` runs after React commits, but `router.push` internally uses `startTransition` to apply the RSC payload. That makes the navigation interruptible. The 4× `qc.invalidateQueries` in `useCreateConcept.onSuccess` start refetch network requests BEFORE `handleDone` runs. When any refetch response arrives during the navigation transition, TQ fires a `useSyncExternalStore` notification — a synchronous, high-priority React update that preempts the low-priority `startTransition` navigation. Next.js detects the interruption and silently discards the navigation.
 
 ---
 
-## If Attempt 7 Also Fails — Next Things to Try
+## Attempt 8 (current) — 2026-04-27
 
-1. **Pathname-watch fallback**: Use `usePathname()` in `ConceptFormProvider`. After `setPendingTarget`, if the pathname hasn't changed within ~500ms, call `router.push(pendingTarget)` again as a retry.
+**What changed**: Added `qc.cancelQueries` calls inside the `useEffect`, immediately before `router.push`, for all four query keys invalidated by `useCreateConcept.onSuccess`.
 
-   ```typescript
-   const pathname = usePathname()
-   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+```typescript
+useEffect(() => {
+  if (!pendingTarget) return
+  if (pendingRedirectRef.current !== pendingTarget) return
+  qc.cancelQueries({ queryKey: ['concepts'] })
+  qc.cancelQueries({ queryKey: ['subjects'] })
+  qc.cancelQueries({ queryKey: ['topics'] })
+  qc.cancelQueries({ queryKey: ['tags'] })
+  router.push(pendingTarget)
+}, [pendingTarget])
+```
 
-   useEffect(() => {
-     if (!pendingTarget) return
-     if (pendingRedirectRef.current !== pendingTarget) return
-     router.push(pendingTarget)
-     retryTimeoutRef.current = setTimeout(() => {
-       if (pendingRedirectRef.current === pendingTarget) {
-         router.push(pendingTarget)  // retry
-       }
-     }, 500)
-     return () => {
-       if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current)
-     }
-   }, [pendingTarget])
-   ```
+**Why expected to work**: `cancelQueries` synchronously marks each matching query as cancelled in TQ's internal state. When the in-flight refetch network responses later arrive, TQ checks the cancelled flag and discards the results — no cache update, no `useSyncExternalStore` notification reaches React. With no high-priority updates to interrupt it, the `startTransition`-wrapped navigation runs to completion.
 
-2. **Cancel all in-flight queries before navigating**: Call `qc.cancelQueries()` inside `handleDone` before `setPendingTarget`. This aborts any pending mutations' network requests so their `onSuccess` callbacks never fire.
+The stale flag (set by `invalidateQueries` in `onSuccess`) survives the cancellation. Queries remain stale and re-fetch automatically on the next component mount or window focus. No data is lost.
 
-3. **`router.replace` instead of `router.push`**: Semantically more correct (form modal state shouldn't be in history). May behave differently for edge cases in Next.js 15's router.
+Cancelling inside the `useEffect` (rather than in `handleDone`) is more precise: cancel and `router.push` execute synchronously back-to-back with no window for new refetches to start between them.
 
-4. **Hard navigation fallback**: Use `window.location.href = target` if `router.push` keeps failing. This is a last resort — forces a full page reload, losing client state.
+**Result**: TBD — deployed 2026-04-27.
 
-5. **Production instrumentation**: Add `console.error`/Sentry events before `router.push` in the effect and inside ConceptView's `closeConceptForm` effect to confirm whether the effect fires but Next.js drops the push, or whether the effect never fires.
+---
+
+## If Attempt 8 Also Fails — Next Things to Try
+
+1. **`router.replace` instead of `router.push`**: Semantically more correct (form modal state shouldn't be in history). May behave differently internally for edge cases.
+
+2. **Production instrumentation**: Add Sentry/console events before `router.push` and inside ConceptView's `closeConceptForm` effect to trace exactly where the flow breaks.
+
+3. **Hard navigation fallback**: Use `window.location.href = target` instead of `router.push`. Forces a full page reload — guaranteed to work but loses client state.

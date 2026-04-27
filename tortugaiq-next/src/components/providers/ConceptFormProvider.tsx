@@ -38,20 +38,32 @@ export function ConceptFormProvider({ children }: { children: React.ReactNode })
   const router = useRouter()
   const { captureViewState } = useViewStateRegistry()
   const qc = useQueryClient()
-  // Navigate after React fully commits all pending state (setNavigating, TQ cache
-  // updates). No setState here, no startTransition — useEffect guarantees post-commit
-  // execution: React is idle, no update cycle is active, and router.push runs at normal
-  // priority. startTransition (Attempt 6) was removed because it marks navigation as
-  // low-priority, making it interruptible by TQ's synchronous useSyncExternalStore
-  // subscriber notifications (e.g. qc.invalidateQueries firing from an in-flight
-  // updateContentMut.onSuccess). That was the likely cause of the ongoing failures,
-  // especially when markdown content was saved just before creating a new concept.
-  // (Attempt 7 — see docs/bugs/redirect-new-concept-navigation.md)
+  // Navigate after React fully commits all pending state. useEffect guarantees
+  // post-commit execution. Before calling router.push, cancel all in-flight TQ
+  // refetches: useCreateConcept.onSuccess fires qc.invalidateQueries × 4 which
+  // start refetch network requests. If any completes during Next.js's internal
+  // startTransition-wrapped RSC navigation, TQ's useSyncExternalStore notification
+  // triggers a high-priority React update that preempts the transition — and Next.js
+  // silently drops the navigation. cancelQueries marks them cancelled so TQ discards
+  // the responses without touching the cache; queries remain stale and re-fetch on
+  // next mount/focus. (Attempt 8 — see docs/bugs/redirect-new-concept-navigation.md)
   useEffect(() => {
     if (!pendingTarget) return
     if (pendingRedirectRef.current !== pendingTarget) return  // cancelled by handleClose
+    // Cancel in-flight TQ refetches before navigating. useCreateConcept.onSuccess
+    // fires qc.invalidateQueries × 4 right before handleDone runs, starting
+    // refetch network requests. If any response arrives while Next.js is processing
+    // the startTransition-wrapped RSC navigation, TQ fires a useSyncExternalStore
+    // notification → React schedules a high-priority update → the transition is
+    // interrupted → Next.js silently drops router.push.
+    // cancelQueries marks these as cancelled so TQ discards responses without
+    // touching the cache. Queries remain stale and re-fetch on next mount/focus.
+    qc.cancelQueries({ queryKey: ['concepts'] })
+    qc.cancelQueries({ queryKey: ['subjects'] })
+    qc.cancelQueries({ queryKey: ['topics'] })
+    qc.cancelQueries({ queryKey: ['tags'] })
     router.push(pendingTarget)
-  // router is a stable singleton; omitting avoids spurious re-fires
+  // router and qc are stable singletons; omitting avoids spurious re-fires
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingTarget])
 
