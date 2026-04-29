@@ -50,9 +50,21 @@ export default function LandingPage() {
         <div className="flex flex-col items-center text-center">
           <span className="text-5xl mb-4 leading-none">🔍🐢</span>
           <h2 className="text-2xl font-bold text-gray-900 mb-3">TortugaIQ</h2>
-          <p className="text-gray-500 mb-8 leading-relaxed max-w-sm">
+          <p className="text-gray-500 mb-6 leading-relaxed max-w-sm">
             I built a long-term learning system based on simple concepts, intuitive organization, and quick review.
           </p>
+          <ul className="flex flex-col gap-2 mb-8 text-left w-full max-w-sm">
+            {[
+              'Build your own library of concepts',
+              'Choose what to review, without hidden algorithms',
+              'Flexible organization, without rigid decks or nested complexity',
+            ].map((point, i) => (
+              <li key={i} className="flex items-start gap-3 text-sm text-gray-500">
+                <span className="text-gray-300 mt-0.5 flex-shrink-0">—</span>
+                <span>{point}</span>
+              </li>
+            ))}
+          </ul>
           <div className="flex flex-col gap-2.5 w-full max-w-xs">
             <Link
               to="/sign-in"

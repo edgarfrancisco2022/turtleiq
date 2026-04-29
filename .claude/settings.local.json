@@ -12,7 +12,9 @@
       "Bash(mkdir -p \"tortugaiq-next/src/app/\\(app\\)/app/subjects/[subjectId]\")",
       "Bash(mkdir -p \"tortugaiq-next/src/app/\\(app\\)/app/concepts/[conceptId]\")",
       "Bash(echo \"Exit: $?\")",
-      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_w38CGIbTetVj@ep-curly-scene-an6pmxs7-pooler.c-6.us-east-1.aws.neon.tech/neondb?channel_binding=require&sslmode=require\" npx drizzle-kit migrate)"
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_w38CGIbTetVj@ep-curly-scene-an6pmxs7-pooler.c-6.us-east-1.aws.neon.tech/neondb?channel_binding=require&sslmode=require\" npx drizzle-kit migrate)",
+      "Bash(psql \"postgresql://postgres:devpassword@localhost:5432/tortugaiq_dev\" -c \"SELECT id, email FROM users; SELECT user_id, provider, \\\\\"providerAccountId\\\\\" FROM accounts;\")",
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")"
     ]
   }
 }

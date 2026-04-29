@@ -144,17 +144,20 @@ export function useUpdateConceptContent() {
       field: 'mvkNotes' | 'markdownNotes' | 'referencesMarkdown'
       value: string
     }) => updateConceptContent(id, field, value),
-    onSuccess: (_, { id }) => {
-      // Only invalidate the specific concept — content fields (mvkNotes,
-      // markdownNotes, referencesMarkdown) are not shown in list views, so
-      // the broad ['concepts'] list cache does not need to be invalidated.
-      // refetchType: 'none' marks the query stale WITHOUT starting a network refetch.
-      // The default refetchType: 'active' would immediately fire a Server Action call.
-      // If the user creates a new concept before that response resolves, it arrives
-      // mid-navigation, TQ's useSyncExternalStore fires a high-priority React update,
-      // and Next.js's internal startTransition-wrapped RSC navigation is interrupted
-      // and silently dropped (same race as the redirect-new-concept-navigation bug).
-      // The query refetches automatically on the next component mount or window focus.
+    onMutate: async ({ id, field, value }) => {
+      await qc.cancelQueries({ queryKey: ['concepts'] })
+      const prev = qc.getQueryData<Concept[]>(['concepts'])
+      qc.setQueryData<Concept[]>(['concepts'], (old) =>
+        old?.map((c) => (c.id === id ? { ...c, [field]: value } : c)) ?? []
+      )
+      return { prev }
+    },
+    onError: (_, __, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['concepts'], ctx.prev)
+    },
+    onSettled: (_, __, { id }) => {
+      // refetchType: 'none' marks stale without an immediate network refetch.
+      // Avoids the startTransition race that can drop RSC navigation mid-flight.
       qc.invalidateQueries({ queryKey: ['concepts', id], refetchType: 'none' })
     },
   })
