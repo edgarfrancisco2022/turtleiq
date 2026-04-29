@@ -147,17 +147,24 @@ export function useUpdateConceptContent() {
     onMutate: async ({ id, field, value }) => {
       await qc.cancelQueries({ queryKey: ['concepts'] })
       const prev = qc.getQueryData<Concept[]>(['concepts'])
+      const prevSingle = qc.getQueryData<Concept | null>(['concepts', id])
       qc.setQueryData<Concept[]>(['concepts'], (old) =>
         old?.map((c) => (c.id === id ? { ...c, [field]: value } : c)) ?? []
       )
-      return { prev }
+      qc.setQueryData<Concept | null>(['concepts', id], (old) =>
+        old ? { ...old, [field]: value } : old
+      )
+      return { prev, prevSingle }
     },
-    onError: (_, __, ctx) => {
+    onError: (_, { id }, ctx) => {
       if (ctx?.prev) qc.setQueryData(['concepts'], ctx.prev)
+      if (ctx?.prevSingle !== undefined) qc.setQueryData(['concepts', id], ctx.prevSingle)
     },
     onSettled: (_, __, { id }) => {
       // refetchType: 'none' marks stale without an immediate network refetch.
       // Avoids the startTransition race that can drop RSC navigation mid-flight.
+      // See markdown-editor-redirect-on-save.md Attempt 2 and
+      // redirect-new-concept-navigation.md Attempt 9.
       qc.invalidateQueries({ queryKey: ['concepts', id], refetchType: 'none' })
     },
   })

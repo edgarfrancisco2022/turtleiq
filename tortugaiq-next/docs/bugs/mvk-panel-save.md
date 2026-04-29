@@ -33,3 +33,21 @@ Added an optimistic update that patches the `['concepts']` list cache immediatel
 - `onMutate`'s `cancelQueries` and `setQueryData` are pure in-memory operations — no network requests are started, so no refetch response can arrive mid-navigation to interrupt the RSC transition.
 - `onSettled` retains `refetchType: 'none'`, so the content save server action resolving mid-navigation also cannot start a new network request that would trigger a `useSyncExternalStore` notification and preempt `startTransition`.
 - `useCreateConcept` is unchanged — the Attempt 9 fix on that hook is unaffected.
+
+## Fix (attempt 2) — 2026-04-28
+
+**File:** `src/hooks/useConcepts.ts` — `useUpdateConceptContent`
+
+Attempt 1 patched the `['concepts']` list cache in `onMutate`, which fixed the MVK panel in SubjectView/Library/IndexMode (those views derive `focusedConcept` from the list). However, ConceptView reads its concept from a *separate* cache entry — `['concepts', id]` — via `useConcept(id)`. That entry was never updated on save, so all three MarkdownEditors in ConceptView (MVK, Notes, References) showed stale content after clicking Save until the user refreshed.
+
+Extended `onMutate` to also snapshot and write the new field value into `['concepts', id]`. Extended `onError` to rollback that snapshot. `onSettled` is unchanged.
+
+- `onMutate`: snapshot `prevSingle = getQueryData(['concepts', id])`, then `setQueryData(['concepts', id], old => old ? { ...old, [field]: value } : old)`
+- `onError`: rollback `['concepts', id]` using `prevSingle` from context (in addition to the existing list rollback); destructures `id` from `variables` instead of ignoring it
+- `onSettled`: unchanged — `refetchType: 'none'` on `['concepts', id]` is preserved
+
+**Compatibility with existing fixes:**
+- `onSettled` is untouched — `refetchType: 'none'` continues to prevent the content-save server action response from arriving mid-navigation and interrupting `startTransition` (markdown-editor-redirect-on-save.md Attempt 2).
+- The new `setQueryData(['concepts', id], ...)` is a pure in-memory write — no network request is started, so no refetch response can arrive mid RSC transition (redirect-new-concept-navigation.md Attempt 9 is unaffected).
+- `cancelQueries({ queryKey: ['concepts'] })` already cancels `['concepts', id]` via TanStack Query's default prefix matching, so in-flight single-concept fetches are cancelled before both patches are written — consistent with Attempt 1's list-cache cancellation.
+- `useCreateConcept` is unchanged.

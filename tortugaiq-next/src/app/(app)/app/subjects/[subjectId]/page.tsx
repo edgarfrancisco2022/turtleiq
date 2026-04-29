@@ -38,6 +38,13 @@ function isEditableTarget(e: KeyboardEvent) {
   return ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) || t.contentEditable === 'true'
 }
 
+function getNextFocusId(list: Concept[], deletedIdx: number): string | null {
+  if (list.length <= 1) return null
+  if (deletedIdx < 0) return list[0]?.id ?? null
+  const nextIdx = deletedIdx < list.length - 1 ? deletedIdx + 1 : deletedIdx - 1
+  return list[nextIdx]?.id ?? null
+}
+
 export default function SubjectView() {
   const { subjectId } = useParams<{ subjectId: string }>()
   const router = useRouter()
@@ -76,6 +83,7 @@ export default function SubjectView() {
   // update) never reset focus to index 0. focusedIdx is derived from the ID.
   const [focusedConceptId, setFocusedConceptId] = useState<string | null>(null)
   const focusedConceptIdRef = useRef<string | null>(null)
+  const pendingFocusIdRef = useRef<string | null | undefined>(undefined)
 
   const [panelOpen, setPanelOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Concept | null>(null)
@@ -195,6 +203,12 @@ export default function SubjectView() {
     if (backRestoring.current) { backRestoring.current = false; return }
     const prevId = focusedConceptIdRef.current
     if (prevId && displayed.some((c) => c.id === prevId)) return
+    if (pendingFocusIdRef.current !== undefined) {
+      const target = pendingFocusIdRef.current
+      pendingFocusIdRef.current = undefined
+      setFocusedConceptId(target)
+      return
+    }
     setFocusedConceptId(displayed[0]?.id ?? null)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [displayedKey])
@@ -372,7 +386,12 @@ export default function SubjectView() {
       {deleteTarget && (
         <DeleteConceptDialog
           conceptName={deleteTarget.name}
-          onConfirm={() => { deleteMut.mutate(deleteTarget.id); setDeleteTarget(null) }}
+          onConfirm={() => {
+              const idx = displayed.findIndex((c) => c.id === deleteTarget!.id)
+              pendingFocusIdRef.current = getNextFocusId(displayed, idx)
+              deleteMut.mutate(deleteTarget!.id)
+              setDeleteTarget(null)
+            }}
           onCancel={() => setDeleteTarget(null)}
         />
       )}

@@ -32,6 +32,13 @@ function nameFiltered(concepts: Concept[], query: string) {
   return concepts.filter((c) => c.name.toLowerCase().includes(q))
 }
 
+function getNextFocusId(list: Concept[], deletedIdx: number): string | null {
+  if (list.length <= 1) return null
+  if (deletedIdx < 0) return list[0]?.id ?? null
+  const nextIdx = deletedIdx < list.length - 1 ? deletedIdx + 1 : deletedIdx - 1
+  return list[nextIdx]?.id ?? null
+}
+
 export default function ListMode() {
   const router = useRouter()
   const { collapsed } = useSidebarState()
@@ -73,6 +80,7 @@ export default function ListMode() {
   const [focusedConceptId, setFocusedConceptId] = useState<string | null>(null)
   const focusedConceptIdRef = useRef<string | null>(null)
   focusedConceptIdRef.current = focusedConceptId
+  const pendingFocusIdRef = useRef<string | null | undefined>(undefined)
   const focusedIdx = useMemo(() => {
     if (!focusedConceptId) return 0
     const idx = results.findIndex((c) => c.id === focusedConceptId)
@@ -159,6 +167,12 @@ export default function ListMode() {
     if (backRestoring.current) { backRestoring.current = false; return }
     const prevId = focusedConceptIdRef.current
     if (prevId && results.some((c) => c.id === prevId)) return
+    if (pendingFocusIdRef.current !== undefined) {
+      const target = pendingFocusIdRef.current
+      pendingFocusIdRef.current = undefined
+      setFocusedConceptId(target)
+      return
+    }
     setFocusedConceptId(results[0]?.id ?? null)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resultsKey])
@@ -319,7 +333,12 @@ export default function ListMode() {
       {deleteTarget && (
         <DeleteConceptDialog
           conceptName={deleteTarget.name}
-          onConfirm={() => { deleteMut.mutate(deleteTarget.id); setDeleteTarget(null) }}
+          onConfirm={() => {
+              const idx = results.findIndex((c) => c.id === deleteTarget!.id)
+              pendingFocusIdRef.current = getNextFocusId(results, idx)
+              deleteMut.mutate(deleteTarget!.id)
+              setDeleteTarget(null)
+            }}
           onCancel={() => setDeleteTarget(null)}
         />
       )}
