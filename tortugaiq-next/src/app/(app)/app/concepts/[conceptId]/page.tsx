@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { useConcept, useUpdateConceptField, useUpdateConceptContent, useIncrementReview, useDecrementReview } from '@/hooks/useConcepts'
 import { useConceptForm } from '@/components/providers/ConceptFormProvider'
 import { useDirtyState } from '@/components/providers/DirtyStateProvider'
@@ -18,6 +19,7 @@ export default function ConceptView() {
   const { openConceptForm, closeConceptForm } = useConceptForm()
   const { requestNavigation } = useDirtyState()
 
+  const qc = useQueryClient()
   const { data: concept, isLoading } = useConcept(conceptId)
   const updateFieldMut = useUpdateConceptField()
   const updateContentMut = useUpdateConceptContent()
@@ -25,10 +27,13 @@ export default function ConceptView() {
   const decrementMut = useDecrementReview()
 
   // Drop the navigation backdrop (from ConceptFormProvider) now that this page is rendered.
-  // closeConceptForm is a no-op when no form/backdrop is active.
+  // Also refetch subjects here — RSC navigation is done so there's no startTransition race.
+  // useCreateConcept.onSuccess uses refetchType:'none' to avoid the race, so subjects stay
+  // stale until we trigger the refetch explicitly once navigation has settled.
   useEffect(() => {
     console.log('[redirect] ConceptView mounted — calling closeConceptForm', performance.now(), { conceptId })
     closeConceptForm()
+    qc.invalidateQueries({ queryKey: ['subjects'] })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conceptId])
 

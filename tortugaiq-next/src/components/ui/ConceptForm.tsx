@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import CreatableMultiSelect from './CreatableMultiSelect'
+import CreatableMultiSelect, { type CreatableMultiSelectHandle } from './CreatableMultiSelect'
 import { useSubjects, useTopics, useTags } from '@/hooks/useSubjects'
 import { useCreateConcept, useUpdateConcept } from '@/hooks/useConcepts'
 import type { Concept } from '@/lib/types'
@@ -62,14 +62,9 @@ export default function ConceptForm({ concept = null, onClose, onDone }: Props) 
 
   const pending = createMutation.isPending || updateMutation.isPending
   const backdropMouseDownRef = useRef(false)
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape' && !pending) onClose()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose, pending])
+  const topicRef  = useRef<CreatableMultiSelectHandle>(null)
+  const tagsRef   = useRef<CreatableMultiSelectHandle>(null)
+  const cancelRef = useRef<HTMLButtonElement>(null)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -117,6 +112,7 @@ export default function ConceptForm({ concept = null, onClose, onDone }: Props) 
       <div
         className="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col"
         style={{ maxHeight: viewport.height - 32 }}
+        onKeyDown={(e) => { if (e.key === 'Escape' && !pending) onClose() }}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200 flex-shrink-0">
@@ -165,28 +161,34 @@ export default function ConceptForm({ concept = null, onClose, onDone }: Props) 
               selected={selSubjects}
               onChange={setSelSubjects}
               placeholder="Select or create subject..."
+              onTabNext={() => topicRef.current?.focus()}
             />
 
             <CreatableMultiSelect
+              ref={topicRef}
               label="Topic"
               options={allTopics.map((t) => t.name)}
               selected={selTopics}
               onChange={setSelTopics}
               placeholder="Select or create topic..."
+              onTabNext={() => tagsRef.current?.focus()}
             />
 
             <CreatableMultiSelect
+              ref={tagsRef}
               label="Tags"
               options={allTags.map((t) => t.name)}
               selected={selTags}
               onChange={setSelTags}
               placeholder="Select or create tag..."
+              onTabNext={() => cancelRef.current?.focus()}
             />
 
             {error && <p className="text-red-500 text-xs">{error}</p>}
 
             <div className="flex gap-2 pt-1">
               <button
+                ref={cancelRef}
                 type="button"
                 onClick={onClose}
                 disabled={pending}

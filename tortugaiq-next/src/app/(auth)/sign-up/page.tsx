@@ -2,18 +2,21 @@
 
 import { useActionState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { signIn } from 'next-auth/react'
+import { signIn, useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { signUpAction, signUpWithGoogle /*, signUpWithFacebook */ } from './actions'
 import Logo from '@/components/ui/Logo'
+import GuestLink from '@/components/landing/GuestLink'
 
 export default function SignUpPage() {
   const router = useRouter()
   const [state, formAction, pending] = useActionState(signUpAction, { error: '' })
+  const { data: session } = useSession()
 
   useEffect(() => {
     if (!state.success || !state.email || !state.password) return
 
+    localStorage.removeItem('tiq-guest-credentials')
     signIn('credentials', {
       email: state.email,
       password: state.password,
@@ -35,6 +38,12 @@ export default function SignUpPage() {
 
       <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm">
         <h1 className="text-xl font-bold text-gray-900 mb-6">Create account</h1>
+
+        {session?.user?.isGuest && (
+          <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-5">
+            You&apos;re creating a permanent account. Your demo data and concepts will not be transferred.
+          </div>
+        )}
 
         {/* OAuth providers */}
         <div className="space-y-2 mb-5">
@@ -151,6 +160,9 @@ export default function SignUpPage() {
           <Link href="/sign-in" className="text-blue-600 hover:underline font-medium">
             Sign in
           </Link>
+        </p>
+        <p className="mt-3 text-center">
+          <GuestLink hideForGuest />
         </p>
       </div>
     </div>

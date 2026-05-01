@@ -1,7 +1,11 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { createPortal } from 'react-dom'
+
+export interface CreatableMultiSelectHandle {
+  focus: () => void
+}
 
 interface Props {
   label: string
@@ -10,16 +14,18 @@ interface Props {
   selected?: string[]
   onChange: (value: string[]) => void
   placeholder?: string
+  onTabNext?: () => void
 }
 
-export default function CreatableMultiSelect({
+const CreatableMultiSelect = forwardRef<CreatableMultiSelectHandle, Props>(function CreatableMultiSelect({
   label,
   required = false,
   options = [],
   selected = [],
   onChange,
   placeholder = 'Select or type to create...',
-}: Props) {
+  onTabNext,
+}: Props, ref) {
   const [input, setInput] = useState('')
   const [isOpen, setIsOpen] = useState(false)
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 })
@@ -27,6 +33,10 @@ export default function CreatableMultiSelect({
   const triggerRef = useRef<HTMLDivElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
+
+  useImperativeHandle(ref, () => ({
+    focus: () => triggerRef.current?.focus(),
+  }))
 
   const filtered = options.filter(
     (opt) =>
@@ -97,8 +107,28 @@ export default function CreatableMultiSelect({
         add(filtered[0])
       }
     }
+    if (e.key === 'Tab') {
+      e.preventDefault()
+      if (input.trim()) {
+        if (filtered.length > 0 && filtered[0].toLowerCase() === input.trim().toLowerCase()) {
+          add(filtered[0])
+        } else if (canCreate) {
+          add(input.trim())
+        } else if (filtered.length > 0) {
+          add(filtered[0])
+        } else {
+          setInput('')
+          setIsOpen(false)
+        }
+      } else {
+        setIsOpen(false)
+      }
+      onTabNext?.()
+    }
     if (e.key === 'Escape') {
+      e.stopPropagation()
       setIsOpen(false)
+      requestAnimationFrame(() => triggerRef.current?.focus())
     }
   }
 
@@ -179,10 +209,17 @@ export default function CreatableMultiSelect({
 
       <div
         ref={triggerRef}
-        className={`min-h-[34px] border rounded-md px-2 py-1 flex flex-wrap gap-1 items-center cursor-pointer transition-colors bg-white select-none ${
-          isOpen ? 'border-blue-500' : 'border-gray-300 hover:border-gray-400'
+        tabIndex={0}
+        className={`min-h-[34px] border rounded-md px-2 py-1 flex flex-wrap gap-1 items-center cursor-pointer transition-colors bg-white select-none focus:outline-none ${
+          isOpen ? 'border-blue-500' : 'border-gray-300 hover:border-gray-400 focus:border-blue-500'
         }`}
         onClick={open}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            open()
+          }
+        }}
       >
         {selected.map((s) => (
           <span
@@ -231,4 +268,6 @@ export default function CreatableMultiSelect({
       {dropdown}
     </div>
   )
-}
+})
+
+export default CreatableMultiSelect

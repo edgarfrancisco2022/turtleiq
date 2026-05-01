@@ -3,6 +3,7 @@ import { Check } from 'lucide-react'
 import FeaturesSection from '@/components/landing/FeaturesSection'
 import IdeaSection from '@/components/landing/IdeaSection'
 import Logo from '@/components/ui/Logo'
+import GuestLink from '@/components/landing/GuestLink'
 
 export default function LandingPage() {
   return (
@@ -75,6 +76,9 @@ export default function LandingPage() {
                 Sign in
               </Link>
             </div>
+            <p className="mt-2">
+              <GuestLink />
+            </p>
 
           </div>
 

@@ -7,6 +7,7 @@ import { Suspense } from 'react'
 import Link from 'next/link'
 import { signInWithGoogle /*, signInWithFacebook */ } from './actions'
 import Logo from '@/components/ui/Logo'
+import GuestLink from '@/components/landing/GuestLink'
 
 function SignInContent() {
   const [error, setError] = useState('')
@@ -167,6 +168,9 @@ function SignInContent() {
           <Link href="/sign-up" className="text-blue-600 hover:underline font-medium">
             Sign up
           </Link>
+        </p>
+        <p className="mt-3 text-center">
+          <GuestLink hideForGuest />
         </p>
       </div>
     </div>

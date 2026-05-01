@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { useQueryClient } from '@tanstack/react-query'
 import Sidebar from '@/components/ui/Sidebar'
 import StudySessionBar from '@/components/ui/StudySessionBar'
@@ -10,12 +12,57 @@ import { DirtyStateProvider, useDirtyState } from '@/components/providers/DirtyS
 import { SidebarStateContext } from '@/components/providers/SidebarStateProvider'
 import { ViewStateRegistryProvider } from '@/components/providers/ViewStateRegistryProvider'
 
+const GUEST_TTL_DAYS = 30
+
+function GuestBanner() {
+  const [dismissed, setDismissed] = useState(false)
+  const { data: session } = useSession()
+
+  if (dismissed || !session?.user?.isGuest) return null
+
+  const daysRemaining = session.user.guestCreatedAt
+    ? Math.max(0, Math.ceil(
+        (session.user.guestCreatedAt + GUEST_TTL_DAYS * 24 * 60 * 60 * 1000 - Date.now())
+        / (24 * 60 * 60 * 1000)
+      ))
+    : GUEST_TTL_DAYS
+
+  return (
+    <div className="flex items-center gap-3 bg-amber-50 border-b border-amber-200 px-4 py-2 text-xs text-amber-800">
+      <span>
+        You&apos;re in <strong>demo mode</strong>. This account and all its data will be deleted in{' '}
+        <strong>{daysRemaining} {daysRemaining === 1 ? 'day' : 'days'}</strong>.
+      </span>
+      <Link
+        href="/sign-up"
+        className="font-medium underline underline-offset-2 hover:text-amber-900 whitespace-nowrap transition-colors"
+      >
+        Create a free account
+      </Link>
+      <button
+        onClick={() => setDismissed(true)}
+        className="ml-auto text-amber-600 hover:text-amber-900 transition-colors flex-shrink-0"
+        aria-label="Dismiss banner"
+      >
+        ✕
+      </button>
+    </div>
+  )
+}
+
 function AppShellInner({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const pathname = usePathname()
   const { openConceptForm } = useConceptForm()
   const qc = useQueryClient()
+  const { data: session } = useSession()
+
+  useEffect(() => {
+    if (session?.user && !session.user.isGuest) {
+      localStorage.removeItem('tiq-guest-credentials')
+    }
+  }, [session])
 
   // [DEBUG] Log all TQ cache events to trace race with router.push
   useEffect(() => {
@@ -70,6 +117,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         id="main-content"
         className={`${mainLeft} pt-11 h-screen transition-all duration-200 overflow-y-auto overflow-x-hidden scroll-pt-11 scroll-pb-12`}
       >
+        <GuestBanner />
         {children}
       </main>
     </SidebarStateContext.Provider>

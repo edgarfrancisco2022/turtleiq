@@ -24,6 +24,7 @@ export const users = pgTable('users', {
   image: text('image'),
   // Email/password auth — null for OAuth-only users
   passwordHash: text('password_hash'),
+  isGuest: boolean('is_guest').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })

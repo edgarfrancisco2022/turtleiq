@@ -1,4 +1,4 @@
-import NextAuth from 'next-auth'
+import NextAuth, { type DefaultSession } from 'next-auth'
 import Google from 'next-auth/providers/google'
 import Facebook from 'next-auth/providers/facebook'
 import Credentials from 'next-auth/providers/credentials'
@@ -7,6 +7,21 @@ import { eq } from 'drizzle-orm'
 import bcrypt from 'bcryptjs'
 import { db } from '@/db'
 import { users, accounts, sessions, verificationTokens } from '@/db/schema'
+
+declare module 'next-auth' {
+  interface Session {
+    user: {
+      id: string
+      isGuest: boolean
+      guestCreatedAt?: number
+    } & DefaultSession['user']
+  }
+  interface User {
+    isGuest?: boolean
+    createdAt?: Date
+  }
+}
+
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: DrizzleAdapter(db, {
@@ -46,7 +61,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         if (!valid) return null
 
-        return { id: user.id, email: user.email, name: user.name }
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          isGuest: user.isGuest,
+          createdAt: user.createdAt,
+        }
       },
     }),
   ],
@@ -59,11 +80,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (user?.id) {
         token.sub = user.id
       }
+      if (user !== undefined) {
+        ;(token as any).isGuest = (user as any).isGuest ?? false
+        if ((user as any).isGuest) {
+          ;(token as any).guestCreatedAt = (user as any).createdAt?.getTime()
+        }
+      }
       return token
     },
     session({ session, token }) {
       if (session.user && token.sub) {
         session.user.id = token.sub
+      }
+      session.user.isGuest = (token as any).isGuest ?? false
+      if ((token as any).guestCreatedAt) {
+        session.user.guestCreatedAt = (token as any).guestCreatedAt as number
       }
       return session
     },

@@ -146,3 +146,22 @@ export async function resetPassword(input: {
 
   return {}
 }
+
+// ---------------------------------------------------------------------------
+// Create a guest (demo) user with a clean empty account
+// ---------------------------------------------------------------------------
+
+export async function createGuestUser(): Promise<
+  { error: string } | { email: string; password: string }
+> {
+  const uuid = crypto.randomUUID()
+  const email = `guest-${uuid}@demo.tortugaiq.com`
+  const password = crypto.randomUUID()
+  const passwordHash = await bcrypt.hash(password, 10)
+
+  await db
+    .insert(users)
+    .values({ email, name: 'Demo Guest', passwordHash, isGuest: true })
+
+  return { email, password }
+}

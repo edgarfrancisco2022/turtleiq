@@ -13,7 +13,8 @@ export default auth((req) => {
     return NextResponse.redirect(signInUrl)
   }
 
-  if (isAuthRoute && isLoggedIn) {
+  const isGuest = req.auth?.user?.isGuest === true
+  if (isAuthRoute && isLoggedIn && !isGuest) {
     return NextResponse.redirect(new URL('/app', req.nextUrl.origin))
   }
 
