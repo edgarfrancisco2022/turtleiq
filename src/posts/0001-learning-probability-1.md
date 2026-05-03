@@ -1,9 +1,13 @@
 ---
-title: Learning Probability with TortugaIQ - Storing Intuition
+title: Learning Probability with TortugaIQ - On Storing Intuition
 date: 2026-05-02
 ---
 
 # Learning Probability with TortugaIQ — On Storing Intuition
+
+We are using probability as a concrete example of the kind of long-term learning TortugaIQ is designed to support.
+
+These are working ideas from a system still being tested in practice.
 
 ### Familiarity over memorization
 
@@ -25,14 +29,14 @@ date: 2026-05-02
 - In other words, you are supposed to perform like an expert.
 - But in reality, integration usually requires explicit, careful preparation, and rehearsal.
 - What's worse, integration does not guarantee long-term retention.
-- From the long-term learning perspective, the brain may forget integrated knowledge just as quickly as it forgets isolated concepts.
+- From the long-term learning perspective, the brain may forget integrated knowledge just as quickly as it forgets "isolated" concepts.
 - Our brains do not work like modern AI systems that can quickly scan large amounts of data and produce a highly integrated response on the spot.
-- But our brains can form **intuitions** that are hard to define explicitly, and that can be developed gradually over time.
+- But our brains can form **intuitions** that are fragile at first and hard to define explicitly, though they can still be developed gradually over time.
 - The stronger our intuition for a subject, the easier it becomes to work through integration-type problems when needed.
 - A long-term learning system should be able to help us develop these intuitions.
 - I have found it very helpful to use AI to generate simple, intuitive examples, and then store them in the _Notes_ section of specific _Concepts_.
 - Textbook-style examples are often unnecessarily complex, take a long time to review, and may be less effective for developing lasting intuition, even when they are fully understood.
-- AI-generated examples can be much simpler, more concise, and more intuitive, and can often be reviewed in under a minute while still providing a similar level of understanding and a more lasting intuition for the concept.
+- AI-generated examples can be much simpler, more concise, and more intuitive, and can often be reviewed in under a minute, while still providing a similar level of understanding and a more lasting intuition for the concept.
 
 ### Familiarity + Intuition = Long-term Learning
 
@@ -40,18 +44,22 @@ date: 2026-05-02
 - But if learning is based on integration alone, then we are, relatively speaking, optimizing for the short term.
 - From the long-term learning perspective, it is better to develop a strong **familiarity** with, and **intuition** for, an entire subject (even if you fail the exam) than to focus on getting an A in the class and then stop thinking about it.
 
-### Storing intuition inside a Concept
+### Using TortugaIQ to store intuition through examples
 
 In TortugaIQ, a _Concept_ can store not only a definition or representation, but also a short intuitive example in its _Notes_ section.
 
-In the screenshot below, the experiment is simple: flip a coin and roll a die.
+The screenshot below is an example from probability.
+
+The concept name where this is stored is **Independence with Complement**.
+
+The experiment in the example is simple: `flip a coin and roll a die`.
 
 We define:
 
 - $A$ = the event that the coin lands heads
 - $B$ = the event that the die shows 6
 - $B^c$ = the **complement** of $B$, meaning the event that $B$ does **not** happen
-- so in this case, $B^c$ means the die shows 1, 2, 3, 4, or 5
+  - so in this case, $B^c$ means the die shows 1, 2, 3, 4, or 5
 
 Here, $P(\cdot)$ means the **probability** that an event happens.
 
@@ -66,10 +74,10 @@ The symbol $\cap$ means **intersection**, or the event where both conditions are
 The intuition is simple:
 
 - the coin does not affect the die
-- so whether the die shows 6 is unrelated to whether the coin lands heads
-- and whether the die does **not** show 6 is also unrelated to whether the coin lands heads
+- so the coin landing heads is unrelated to the die showing 6
+- and the coin landing heads is also unrelated to the die not showing 6
 
-Since the coin and die do not affect each other, these events are independent.
+Since the coin and die do not affect each other, these events are called **independent**.
 
 That is why:
 
@@ -79,6 +87,6 @@ $$
 
 In words: the probability that both happen is the probability of the first event multiplied by the probability of the second event.
 
-With this kind of example, our intuition for the concept improves, the concept becomes easier to retain, and even when both fade over time, the idea becomes much easier to recover later.
+With this kind of example, our intuition for the concept improves, the concept becomes easier to retain, and even when both fade over time, it becomes much easier to recover later.
 
 ![independence-with-complement](reference-pictures/independence-with-complement.png)
