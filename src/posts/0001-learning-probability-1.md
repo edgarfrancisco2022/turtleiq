@@ -87,4 +87,4 @@ In words: the probability that both happen is the probability of the first event
 
 With this kind of example, our intuition for the concept improves, the concept becomes easier to retain, and even when both fade over time, it becomes much easier to recover later.
 
-![independence-with-complement](reference-pictures/independence-with-complement.png)
+![independence-with-complement](/posts/reference-pictures/independence-with-complement.png)
