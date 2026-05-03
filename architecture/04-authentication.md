@@ -320,11 +320,12 @@ sequenceDiagram
     participant User
     participant App
     participant DB as Database
-    participant Email as Resend Email
+    participant Email as Gmail (nodemailer)
 
     User->>App: POST /forgot-password (email address)
     App->>App: requestPasswordReset() Server Action
     App->>DB: Find user by email
+    App->>DB: Mark all existing unused tokens for user as usedAt=now
     App->>App: crypto.randomBytes(32) → 64-char hex token
     App->>DB: INSERT password_reset_tokens (token, expiresAt=+1h)
     App->>Email: Send email with link: /forgot-password/reset?token=...
@@ -336,8 +337,9 @@ sequenceDiagram
     App->>DB: SELECT token WHERE token=abc123 AND expires_at > now AND used_at IS NULL
     alt Token valid
         App->>App: bcrypt.hash(newPassword, 12)
-        App->>DB: UPDATE users SET password_hash=hash
-        App->>DB: UPDATE token SET used_at=now
+        App->>DB: UPDATE users SET password_hash=hash (parallel)
+        App->>DB: UPDATE token SET used_at=now (parallel)
+        App->>Email: Send "your password was changed" confirmation email
         App->>User: Redirect to /sign-in
     else Token invalid/expired/used
         App->>User: Error message
@@ -349,6 +351,8 @@ sequenceDiagram
 - 1-hour expiry limits window of opportunity
 - `usedAt` prevents replay attacks (token works only once)
 - No email enumeration: "check your email" is shown regardless of whether the email exists
+- Old unused tokens are invalidated when a new reset is requested — a user cannot accumulate multiple valid reset windows
+- Confirmation email alerts the user after a successful reset; if the change was unauthorized, they know immediately
 
 ---
 

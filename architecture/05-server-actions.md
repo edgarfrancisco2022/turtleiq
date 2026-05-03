@@ -156,16 +156,16 @@ Deletes concept (FK cascade removes junctions). Then `pruneOrphans()`.
 
 #### `updateConceptField(id, field, value) → Promise<void>`
 
-Narrow update: only `state`, `priority`, or `pinned`. Prevents accidentally overwriting content fields when changing state.
+Narrow update: only `state`, `priority`, or `pinned`. Validated at runtime with `updateConceptFieldSchema.parse()` — prevents accidentally passing a content field name or an invalid enum value even through a direct action call.
 
 ```typescript
-// Only these fields can be updated here — enforced by Zod
+// Only these fields can be updated here — validated by Zod at runtime
 type FieldName = 'state' | 'priority' | 'pinned'
 ```
 
 #### `updateConceptContent(id, field, value) → Promise<void>`
 
-Narrow update: only `mvkNotes`, `markdownNotes`, or `referencesMarkdown`. Used by MarkdownEditor's save button. Separate from `updateConceptField` to prevent race conditions between saves.
+Narrow update: only `mvkNotes`, `markdownNotes`, or `referencesMarkdown`. Used by MarkdownEditor's save button. Separate from `updateConceptField` to prevent race conditions between saves. Content fields are validated with `.max(100000)` — a 100 KB limit that prevents clients from storing unbounded strings.
 
 #### `incrementReview(id) → Promise<void>`
 
@@ -344,12 +344,12 @@ Note: `signIn()` is an Auth.js Server Action helper. After a successful credenti
 
 Always returns success (no email enumeration). Internally:
 - Finds user by email
-- If found: generate token, store in DB, send email via Resend
+- If found: invalidate all existing unused reset tokens for this user, generate a new token, store in DB, send email via nodemailer (Gmail)
 - If not found: silently does nothing (same success response)
 
 #### `resetPassword({ token, newPassword }) → Promise<{ error?: string }>`
 
-Validates the token: must exist, not expired, not already used. If valid, hashes and stores the new password, marks token used.
+Validates the token: must exist, not expired, not already used. If valid, hashes and stores the new password, marks token used, and sends a "your password was changed" confirmation email to the user.
 
 #### `createGuestUser() → Promise<{ email: string; password: string }>`
 

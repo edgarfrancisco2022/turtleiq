@@ -44,9 +44,9 @@ export const conceptInputSchema = z.object({
   subjectNames: nameList,
   topicNames: nameList,
   tagNames: nameList,
-  mvkNotes: z.string().default(''),
-  markdownNotes: z.string().default(''),
-  referencesMarkdown: z.string().default(''),
+  mvkNotes: z.string().max(100000).default(''),
+  markdownNotes: z.string().max(100000).default(''),
+  referencesMarkdown: z.string().max(100000).default(''),
   state: z
     .enum(['NEW', 'LEARNING', 'REVIEWING', 'MEMORIZING', 'STORED'])
     .default('NEW'),
@@ -69,7 +69,7 @@ export const updateConceptFieldSchema = z.object({
 export const updateConceptContentSchema = z.object({
   id: z.string().min(1),
   field: z.enum(['mvkNotes', 'markdownNotes', 'referencesMarkdown']),
-  value: z.string(),
+  value: z.string().max(100000),
 })
 
 // ---------------------------------------------------------------------------

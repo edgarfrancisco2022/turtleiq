@@ -1,9 +1,9 @@
 'use server'
 
 import crypto from 'crypto'
-import { and, eq, gt } from 'drizzle-orm'
+import { and, eq, gt, isNull } from 'drizzle-orm'
 import bcrypt from 'bcryptjs'
-import { Resend } from 'resend'
+import nodemailer from 'nodemailer'
 import { signIn } from '@/auth'
 import { db } from '@/db'
 import { passwordResetTokens, users } from '@/db/schema'
@@ -75,6 +75,12 @@ export async function requestPasswordReset(input: {
 
   if (!user) return {}
 
+  // Invalidate any existing unused tokens for this user before issuing a new one
+  await db
+    .update(passwordResetTokens)
+    .set({ usedAt: new Date() })
+    .where(and(eq(passwordResetTokens.userId, user.id), isNull(passwordResetTokens.usedAt)))
+
   const token = crypto.randomBytes(32).toString('hex')
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
 
@@ -86,17 +92,29 @@ export async function requestPasswordReset(input: {
 
   const resetUrl = `${process.env.AUTH_URL}/forgot-password/reset?token=${token}`
 
-  const resend = new Resend(process.env.RESEND_API_KEY)
-  await resend.emails.send({
-    from: process.env.RESEND_FROM_EMAIL!,
-    to: user.email,
-    subject: 'Reset your TortugaIQ password',
-    html: `
-      <p>You requested a password reset for your TortugaIQ account.</p>
-      <p><a href="${resetUrl}">Click here to reset your password</a></p>
-      <p>This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>
-    `,
-  })
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[DEV] Password reset URL: ${resetUrl}`)
+  } else {
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD,
+      },
+    })
+    await transporter.sendMail({
+      from: `TortugaIQ <${process.env.GMAIL_USER}>`,
+      to: user.email,
+      subject: 'Reset your TortugaIQ password',
+      html: `
+        <p>You requested a password reset for your TortugaIQ account.</p>
+        <p><a href="${resetUrl}">Click here to reset your password</a></p>
+        <p>This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>
+      `,
+    })
+  }
 
   return {}
 }
@@ -133,7 +151,12 @@ export async function resetPassword(input: {
 
   const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS)
 
-  await Promise.all([
+  const [user] = await Promise.all([
+    db
+      .select({ email: users.email })
+      .from(users)
+      .where(eq(users.id, resetToken.userId))
+      .then((rows) => rows[0] ?? null),
     db
       .update(users)
       .set({ passwordHash, updatedAt: new Date() })
@@ -143,6 +166,27 @@ export async function resetPassword(input: {
       .set({ usedAt: new Date() })
       .where(eq(passwordResetTokens.id, resetToken.id)),
   ])
+
+  if (user && process.env.NODE_ENV !== 'development') {
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD,
+      },
+    })
+    await transporter.sendMail({
+      from: `TortugaIQ <${process.env.GMAIL_USER}>`,
+      to: user.email,
+      subject: 'Your TortugaIQ password was changed',
+      html: `
+        <p>Your TortugaIQ password was successfully changed.</p>
+        <p>If you didn't make this change, please contact us immediately by replying to this email.</p>
+      `,
+    })
+  }
 
   return {}
 }

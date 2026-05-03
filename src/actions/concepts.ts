@@ -13,7 +13,7 @@ import {
   tags,
   topics,
 } from '@/db/schema'
-import { conceptInputSchema, updateConceptContentSchema } from '@/lib/validations'
+import { conceptInputSchema, updateConceptContentSchema, updateConceptFieldSchema } from '@/lib/validations'
 import type { Concept, ConceptInput, ConceptPriority, ConceptState } from '@/lib/types'
 
 // ---------------------------------------------------------------------------
@@ -501,10 +501,11 @@ export async function updateConceptField(
   value: ConceptState | ConceptPriority | boolean
 ): Promise<void> {
   const userId = await requireAuth()
+  const parsed = updateConceptFieldSchema.parse({ id, field, value })
 
   await db
     .update(concepts)
-    .set({ [field]: value, updatedAt: new Date() })
+    .set({ [parsed.field]: parsed.value, updatedAt: new Date() })
     .where(and(eq(concepts.id, id), eq(concepts.userId, userId)))
 }
 

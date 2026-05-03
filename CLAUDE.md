@@ -472,3 +472,46 @@ Posts in `src/posts/*.md` with YAML frontmatter (`title`, `date`). `src/lib/post
 ### Vercel Cron Job
 
 `vercel.json` schedules `/api/cleanup-guests` to run daily at **03:00 UTC**. The endpoint deletes all guest accounts (`isGuest: true`) older than 30 days. Requests must include `Authorization: Bearer {CRON_SECRET}`.
+
+---
+
+## Security Standards
+
+### Mandatory rules for every new server action
+
+1. Call `requireAuth()` (or `auth()`) at the top — `userId` comes only from the session, never from client input.
+2. Every DB query that reads or writes user data includes `eq(table.userId, userId)`.
+3. All inputs validated with Zod (`.parse()` or `.safeParse()`) before DB access.
+4. Free-text and markdown fields must have `.max(100000)` in their Zod schema.
+
+### Prohibited patterns
+
+- `tls: { rejectUnauthorized: false }` in nodemailer — disables certificate verification.
+- Accepting `userId` from request body, query params, or function arguments.
+- Storing real-user credentials in `localStorage` or `sessionStorage`.
+- Using `===` to compare secrets in API routes — use `crypto.timingSafeEqual()`.
+- Using `rehype-raw` or `allowDangerousHtml` in react-markdown (XSS risk).
+
+### Auth-specific requirements
+
+- Passwords: bcrypt with `BCRYPT_ROUNDS = 12`
+- Tokens: `crypto.randomBytes(32).toString('hex')`
+- Token queries: must check `gt(expiresAt, new Date())` AND `isNull(usedAt)`
+- Password reset: invalidate all existing unused tokens before issuing a new one; send confirmation email after reset completes
+
+### Security headers
+
+Applied to all routes via `next.config.ts` `headers()`: `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, `X-XSS-Protection: 0`.
+
+### Known deferred gaps (do not re-implement or re-flag)
+
+| Gap | Status |
+|-----|--------|
+| Rate limiting on auth endpoints | Planned: `@upstash/ratelimit` + Upstash Redis before high-traffic launch |
+| Email verification for new accounts | Deferred to post-MVP |
+| JWT session invalidation after password reset | Requires denylist — deferred |
+| Content Security Policy (CSP) | Requires tuning for KaTeX/Mermaid/Next.js nonces — deferred |
+
+### Security review
+
+Run `/security-review` to audit current branch changes against this app's security model. The skill lives at `.claude/commands/security-review.md` and knows TortugaIQ's exact patterns.
