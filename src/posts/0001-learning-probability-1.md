@@ -50,40 +50,42 @@ The screenshot below is an example from probability.
 
 The concept name where this is stored is **Independence with Complement**.
 
-The experiment in the example is simple: `flip a coin and roll a die`.
-
-We define:
-
-- $A$ = the event that the coin lands heads
-- $B$ = the event that the die shows 6
-- $B^c$ = the **complement** of $B$, meaning the event that $B$ does **not** happen
-  - so in this case, $B^c$ means the die shows 1, 2, 3, 4, or 5
-
-Here, $P(\cdot)$ means the **probability** that an event happens.
-
-So:
-
-- $P(A)$ means the probability that the coin lands heads
-- $P(B^c)$ means the probability that the die does not show 6
-- $P(A \cap B^c)$ means the probability that **both** events happen: the coin lands heads **and** the die does not show 6
-
-The symbol $\cap$ means **intersection**, or the event where both conditions are true at the same time.
-
-The intuition is simple:
-
-- the coin does not affect the die
-- so the coin landing heads is unrelated to the die showing 6
-- and the coin landing heads is also unrelated to the die not showing 6
-
-Since the coin and die do not affect each other, these events are called **independent**.
-
-That is why:
-
-$$
-P(A \cap B^c) = P(A)P(B^c)
-$$
-
-In words: the probability that both happen is the probability of the first event multiplied by the probability of the second event.
+> _AI-generated note example_
+>
+> The experiment in the example is simple: `flip a coin and roll a die`.
+>
+> We define:
+>
+> - $A$ = the event that the coin lands heads
+> - $B$ = the event that the die shows 6
+> - $B^c$ = the **complement** of $B$, meaning the event that $B$ does **not** happen
+>   - so in this case, $B^c$ means the die shows 1, 2, 3, 4, or 5
+>
+> Here, $P(\cdot)$ means the **probability** that an event happens.
+>
+> So:
+>
+> - $P(A)$ means the probability that the coin lands heads
+> - $P(B^c)$ means the probability that the die does not show 6
+> - $P(A \cap B^c)$ means the probability that **both** events happen: the coin lands heads **and** the die does not show 6
+>
+> The symbol $\cap$ means **intersection**, or the event where both conditions are true at the same time.
+>
+> The intuition is simple:
+>
+> - the coin does not affect the die
+> - so the coin landing heads is unrelated to the die showing 6
+> - and the coin landing heads is also unrelated to the die not showing 6
+>
+> Since the coin and die do not affect each other, these events are called **independent**.
+>
+> That is why:
+>
+> $$
+> P(A \cap B^c) = P(A)P(B^c)
+> $$
+>
+> In words: the probability that both happen is the probability of the first event multiplied by the probability of the second event.
 
 With this kind of example, our intuition for the concept improves, the concept becomes easier to retain, and even when both fade over time, it becomes much easier to recover later.
 
