@@ -3,8 +3,6 @@ title: Learning Probability with TortugaIQ - On Storing Intuition
 date: 2026-05-02
 ---
 
-# Learning Probability with TortugaIQ — On Storing Intuition
-
 We are using probability as a concrete example of the kind of long-term learning TortugaIQ is designed to support.
 
 These are working ideas from a system still being tested in practice.
