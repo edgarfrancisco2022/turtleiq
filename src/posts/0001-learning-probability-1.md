@@ -34,7 +34,7 @@ These are working ideas from a system still being tested in practice.
 - A long-term learning system should be able to help us develop these intuitions.
 - I have found it very helpful to use AI to generate simple, intuitive examples, and then store them in the _Notes_ section of specific _Concepts_.
 - Textbook-style examples are often unnecessarily complex, take a long time to review, and may be less effective for developing lasting intuition, even when they are fully understood.
-- AI-generated examples can be much simpler, more concise, and more intuitive, and can often be reviewed in under a minute, while still providing a similar level of understanding and a more lasting intuition for the concept.
+- AI-generated examples can be much simpler, more concise, more intuitive, and can often be reviewed in under a minute while still providing a similar level of understanding and a more lasting intuition for the concept.
 
 ### Familiarity + Intuition = Long-term Learning
 
