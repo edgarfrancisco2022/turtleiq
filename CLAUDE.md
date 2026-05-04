@@ -57,7 +57,6 @@ GOOGLE_CLIENT_SECRET=
 FACEBOOK_CLIENT_ID=
 FACEBOOK_CLIENT_SECRET=
 RESEND_API_KEY=
-RESEND_FROM_EMAIL=          # e.g. noreply@tortugaiq.com
 CRON_SECRET=                # secret used to authenticate Vercel cron requests
 ```
 

@@ -3,7 +3,7 @@
 import crypto from 'crypto'
 import { and, eq, gt, isNull } from 'drizzle-orm'
 import bcrypt from 'bcryptjs'
-import nodemailer from 'nodemailer'
+import { Resend } from 'resend'
 import { signIn } from '@/auth'
 import { db } from '@/db'
 import { passwordResetTokens, users } from '@/db/schema'
@@ -94,18 +94,12 @@ export async function requestPasswordReset(input: {
 
   if (process.env.NODE_ENV === 'development') {
     console.log(`[DEV] Password reset URL: ${resetUrl}`)
-  } else {
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD,
-      },
-    })
-    await transporter.sendMail({
-      from: `TortugaIQ <${process.env.GMAIL_USER}>`,
+  }
+
+  try {
+    const resend = new Resend(process.env.RESEND_API_KEY)
+    await resend.emails.send({
+      from: 'TortugaIQ <onboarding@resend.dev>',
       to: user.email,
       subject: 'Reset your TortugaIQ password',
       html: `
@@ -114,6 +108,8 @@ export async function requestPasswordReset(input: {
         <p>This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>
       `,
     })
+  } catch (err) {
+    console.error('[requestPasswordReset] Email send failed:', err)
   }
 
   return {}
@@ -167,25 +163,21 @@ export async function resetPassword(input: {
       .where(eq(passwordResetTokens.id, resetToken.id)),
   ])
 
-  if (user && process.env.NODE_ENV !== 'development') {
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD,
-      },
-    })
-    await transporter.sendMail({
-      from: `TortugaIQ <${process.env.GMAIL_USER}>`,
-      to: user.email,
-      subject: 'Your TortugaIQ password was changed',
-      html: `
-        <p>Your TortugaIQ password was successfully changed.</p>
-        <p>If you didn't make this change, please contact us immediately by replying to this email.</p>
-      `,
-    })
+  if (user) {
+    try {
+      const resend = new Resend(process.env.RESEND_API_KEY)
+      await resend.emails.send({
+        from: 'TortugaIQ <onboarding@resend.dev>',
+        to: user.email,
+        subject: 'Your TortugaIQ password was changed',
+        html: `
+          <p>Your TortugaIQ password was successfully changed.</p>
+          <p>If you didn't make this change, please contact us immediately by replying to this email.</p>
+        `,
+      })
+    } catch (err) {
+      console.error('[resetPassword] Confirmation email send failed:', err)
+    }
   }
 
   return {}
