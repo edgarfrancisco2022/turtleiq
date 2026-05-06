@@ -320,7 +320,7 @@ sequenceDiagram
     participant User
     participant App
     participant DB as Database
-    participant Email as Gmail (nodemailer)
+    participant Email as Resend (HTTP API)
 
     User->>App: POST /forgot-password (email address)
     App->>App: requestPasswordReset() Server Action

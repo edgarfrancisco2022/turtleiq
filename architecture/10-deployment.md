@@ -109,7 +109,7 @@ Set in Vercel project settings (Production + Preview environments):
 | `FACEBOOK_CLIENT_ID` | Facebook app ID | Facebook Developer Dashboard |
 | `FACEBOOK_CLIENT_SECRET` | Facebook app secret | Facebook Developer Dashboard |
 | `RESEND_API_KEY` | Resend API key | Resend dashboard → API Keys |
-| `RESEND_FROM_EMAIL` | Verified sender email | e.g. `noreply@tortugaiq.com` |
+| `RESEND_FROM_EMAIL` | Verified sender email — must be on a domain verified in Resend | e.g. `noreply@yourdomain.com` |
 | `CRON_SECRET` | Secret for cron endpoint auth | `openssl rand -base64 32` |
 
 Local development: copy these to `.env.local` (never commit this file).
