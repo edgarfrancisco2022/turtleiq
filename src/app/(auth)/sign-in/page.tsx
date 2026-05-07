@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { signInWithGoogle } from './actions'
 import Logo from '@/components/ui/Logo'
 import GuestLink from '@/components/landing/GuestLink'
+import PasswordInput from '@/components/ui/PasswordInput'
 
 function SignInContent() {
   const [error, setError] = useState('')
@@ -125,11 +126,10 @@ function SignInContent() {
             <label className="text-xs font-medium text-gray-600 mb-1 block" htmlFor="password">
               Password
             </label>
-            <input
+            <PasswordInput
               id="password"
               name="password"
-              type="password"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              className="w-full border border-gray-200 rounded-lg pl-3 pr-10 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               required
               autoComplete="current-password"
             />

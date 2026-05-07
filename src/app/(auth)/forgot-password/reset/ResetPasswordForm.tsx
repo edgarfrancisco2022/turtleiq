@@ -4,6 +4,7 @@ import { useActionState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { resetPasswordAction } from './actions'
+import PasswordInput from '@/components/ui/PasswordInput'
 
 export default function ResetPasswordForm() {
   const searchParams = useSearchParams()
@@ -38,11 +39,10 @@ export default function ResetPasswordForm() {
           <label className="text-xs font-medium text-gray-600 mb-1 block" htmlFor="newPassword">
             New password
           </label>
-          <input
+          <PasswordInput
             id="newPassword"
             name="newPassword"
-            type="password"
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            className="w-full border border-gray-200 rounded-lg pl-3 pr-10 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             required
             autoFocus
             autoComplete="new-password"

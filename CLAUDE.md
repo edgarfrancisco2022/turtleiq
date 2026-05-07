@@ -7,6 +7,7 @@ This is the primary reference for Claude Code working on this app. Read it befor
 ## What Is TortugaIQ
 
 TortugaIQ is a personal knowledge management app for long-term learning. The core unit is the **Concept** — a named piece of knowledge with:
+
 - An **MVK** (Minimum Viable Knowledge): the smallest useful representation
 - Full markdown notes and references
 - Metadata: subjects, topics, tags, state, priority, review count, pin status
@@ -17,18 +18,18 @@ This is NOT a flashcard or spaced-repetition app. Users navigate their concepts 
 
 ## Tech Stack
 
-| Layer | Choice |
-|-------|--------|
-| Framework | Next.js 16.2.2, App Router, TypeScript (strict) |
-| Database | PostgreSQL on Neon (serverless) |
-| ORM | Drizzle ORM + Drizzle Kit |
-| Auth | Auth.js v5 (NextAuth) — JWT session strategy |
-| Client data | TanStack Query v5 |
-| Validation | Zod |
-| Styling | Tailwind CSS v4 + @tailwindcss/typography (no tailwind.config.ts — configured via CSS imports) |
-| Markdown | react-markdown + remark-gfm + remark-math + rehype-katex + mermaid |
-| Email | Resend |
-| Deploy | Vercel |
+| Layer       | Choice                                                                                         |
+| ----------- | ---------------------------------------------------------------------------------------------- |
+| Framework   | Next.js 16.2.2, App Router, TypeScript (strict)                                                |
+| Database    | PostgreSQL on Neon (serverless)                                                                |
+| ORM         | Drizzle ORM + Drizzle Kit                                                                      |
+| Auth        | Auth.js v5 (NextAuth) — JWT session strategy                                                   |
+| Client data | TanStack Query v5                                                                              |
+| Validation  | Zod                                                                                            |
+| Styling     | Tailwind CSS v4 + @tailwindcss/typography (no tailwind.config.ts — configured via CSS imports) |
+| Markdown    | react-markdown + remark-gfm + remark-math + rehype-katex + mermaid                             |
+| Email       | Resend                                                                                         |
+| Deploy      | Vercel                                                                                         |
 
 ---
 
@@ -65,57 +66,110 @@ CRON_SECRET=                # secret used to authenticate Vercel cron requests
 ### TypeScript Types (`src/lib/types.ts`)
 
 ```typescript
-export type ConceptState    = 'NEW' | 'LEARNING' | 'REVIEWING' | 'MEMORIZING' | 'STORED'
-export type ConceptPriority = 'LOW' | 'MEDIUM' | 'HIGH'
-export type SubjectSortMode = 'alpha' | 'alpha_desc' | 'date_new' | 'date_old' | 'reviews_high' | 'reviews_low' | 'custom'
+export type ConceptState =
+  | "NEW"
+  | "LEARNING"
+  | "REVIEWING"
+  | "MEMORIZING"
+  | "STORED";
+export type ConceptPriority = "LOW" | "MEDIUM" | "HIGH";
+export type SubjectSortMode =
+  | "alpha"
+  | "alpha_desc"
+  | "date_new"
+  | "date_old"
+  | "reviews_high"
+  | "reviews_low"
+  | "custom";
 
-export interface Subject { id: string; userId: string; name: string; createdAt: Date; updatedAt: Date }
-export interface Topic   { id: string; userId: string; name: string; createdAt: Date; updatedAt: Date }
-export interface Tag     { id: string; userId: string; name: string; createdAt: Date; updatedAt: Date }
-
-export interface Concept {
-  id: string; userId: string; name: string
-  mvkNotes: string; markdownNotes: string; referencesMarkdown: string
-  state: ConceptState; priority: ConceptPriority
-  reviewCount: number; pinned: boolean
-  createdAt: Date; updatedAt: Date
-  // Joined fields (populated by query, not stored in concepts table)
-  subjectIds: string[]; topicIds: string[]; tagIds: string[]
-  // Only populated by getConcept (single-concept queries)
-  subjectNames?: string[]; topicNames?: string[]; tagNames?: string[]
+export interface Subject {
+  id: string;
+  userId: string;
+  name: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+export interface Topic {
+  id: string;
+  userId: string;
+  name: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+export interface Tag {
+  id: string;
+  userId: string;
+  name: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-export interface StudySession { id: string; userId: string; minutes: number; subjectId: string | null; createdAt: Date }
+export interface Concept {
+  id: string;
+  userId: string;
+  name: string;
+  mvkNotes: string;
+  markdownNotes: string;
+  referencesMarkdown: string;
+  state: ConceptState;
+  priority: ConceptPriority;
+  reviewCount: number;
+  pinned: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  // Joined fields (populated by query, not stored in concepts table)
+  subjectIds: string[];
+  topicIds: string[];
+  tagIds: string[];
+  // Only populated by getConcept (single-concept queries)
+  subjectNames?: string[];
+  topicNames?: string[];
+  tagNames?: string[];
+}
+
+export interface StudySession {
+  id: string;
+  userId: string;
+  minutes: number;
+  subjectId: string | null;
+  createdAt: Date;
+}
 
 // Input types for mutations (names not IDs — server resolves/creates)
 export interface ConceptInput {
-  name: string
-  subjectNames: string[]; topicNames: string[]; tagNames: string[]
+  name: string;
+  subjectNames: string[];
+  topicNames: string[];
+  tagNames: string[];
   // Optional fields — used when creating with pre-filled content
-  mvkNotes?: string; markdownNotes?: string; referencesMarkdown?: string
-  state?: ConceptState; priority?: ConceptPriority; pinned?: boolean
+  mvkNotes?: string;
+  markdownNotes?: string;
+  referencesMarkdown?: string;
+  state?: ConceptState;
+  priority?: ConceptPriority;
+  pinned?: boolean;
 }
 ```
 
 ### Database Tables (`src/db/schema.ts`)
 
-| Table | Purpose |
-|-------|---------|
-| `users` | Auth.js adapter + `passwordHash`, `isGuest` (boolean, default false), `createdAt`/`updatedAt` extensions |
-| `accounts` | OAuth provider accounts (Auth.js) |
-| `sessions` | Auth.js adapter table (present but not used for session lookups — JWT strategy) |
-| `verification_tokens` | Email verification (Auth.js) |
-| `password_reset_tokens` | Password recovery flow |
-| `subjects` | User subjects — unique `(userId, name)` constraint |
-| `topics` | User topics — unique `(userId, name)` |
-| `tags` | User tags — unique `(userId, name)` |
-| `concepts` | Core entity |
-| `concept_subjects` | M:M concept ↔ subject (cascade delete) |
-| `concept_topics` | M:M concept ↔ topic (cascade delete) |
-| `concept_tags` | M:M concept ↔ tag (cascade delete) |
-| `subject_concept_orders` | Custom sort positions per `(userId, subjectId, conceptId)` |
-| `subject_sort_modes` | Sort mode preference per `(userId, subjectId)` — full 7-value enum matching `SubjectSortMode` |
-| `study_sessions` | Study time log; `subjectId` FK is SET NULL on subject delete |
+| Table                    | Purpose                                                                                                  |
+| ------------------------ | -------------------------------------------------------------------------------------------------------- |
+| `users`                  | Auth.js adapter + `passwordHash`, `isGuest` (boolean, default false), `createdAt`/`updatedAt` extensions |
+| `accounts`               | OAuth provider accounts (Auth.js)                                                                        |
+| `sessions`               | Auth.js adapter table (present but not used for session lookups — JWT strategy)                          |
+| `verification_tokens`    | Email verification (Auth.js)                                                                             |
+| `password_reset_tokens`  | Password recovery flow                                                                                   |
+| `subjects`               | User subjects — unique `(userId, name)` constraint                                                       |
+| `topics`                 | User topics — unique `(userId, name)`                                                                    |
+| `tags`                   | User tags — unique `(userId, name)`                                                                      |
+| `concepts`               | Core entity                                                                                              |
+| `concept_subjects`       | M:M concept ↔ subject (cascade delete)                                                                   |
+| `concept_topics`         | M:M concept ↔ topic (cascade delete)                                                                     |
+| `concept_tags`           | M:M concept ↔ tag (cascade delete)                                                                       |
+| `subject_concept_orders` | Custom sort positions per `(userId, subjectId, conceptId)`                                               |
+| `subject_sort_modes`     | Sort mode preference per `(userId, subjectId)` — full 7-value enum matching `SubjectSortMode`            |
+| `study_sessions`         | Study time log; `subjectId` FK is SET NULL on subject delete                                             |
 
 Every user-owned table has `userId` as a non-nullable FK to `users.id ON DELETE CASCADE`.
 
@@ -125,29 +179,29 @@ Every user-owned table has `userId` as a non-nullable FK to `users.id ON DELETE 
 
 ### Public
 
-| Route | View | Notes |
-|-------|------|-------|
-| `/` | LandingPage | Marketing page: hero, FeaturesSection, IdeaSection |
-| `/notes` | NotesView | Static blog list |
-| `/notes/[slug]` | PostView | Blog post |
-| `/privacy` | PrivacyPage | Static privacy policy |
-| `/sign-in` | SignInPage | Credentials + Google |
-| `/sign-up` | SignUpPage | Registration |
-| `/forgot-password` | ForgotPasswordPage | Request reset email |
-| `/forgot-password/reset` | ResetPasswordPage | Token validation + new password |
+| Route                    | View               | Notes                                              |
+| ------------------------ | ------------------ | -------------------------------------------------- |
+| `/`                      | LandingPage        | Marketing page: hero, FeaturesSection, IdeaSection |
+| `/notes`                 | NotesView          | Static blog list                                   |
+| `/notes/[slug]`          | PostView           | Blog post                                          |
+| `/privacy`               | PrivacyPage        | Static privacy policy                              |
+| `/sign-in`               | SignInPage         | Credentials + Google                               |
+| `/sign-up`               | SignUpPage         | Registration                                       |
+| `/forgot-password`       | ForgotPasswordPage | Request reset email                                |
+| `/forgot-password/reset` | ResetPasswordPage  | Token validation + new password                    |
 
 ### App (require auth — middleware redirects to /sign-in)
 
-| Route | View | Notes |
-|-------|------|-------|
-| `/app` | HomeView | Welcome + "New Concept" CTA |
-| `/app/subjects/[subjectId]` | SubjectView | Concepts in a subject |
-| `/app/concepts/[conceptId]` | ConceptView | Full concept detail |
-| `/app/library` | ListMode | All concepts, searchable |
-| `/app/focus` | FocusMode | Flipcard carousel |
-| `/app/index` | IndexMode | Alphabetical pill grid |
-| `/app/overview` | OverviewView | Stats dashboard (Server Component) |
-| `/app/sessions` | SessionsPage | Study session history with edit/delete |
+| Route                       | View         | Notes                                  |
+| --------------------------- | ------------ | -------------------------------------- |
+| `/app`                      | HomeView     | Welcome + "New Concept" CTA            |
+| `/app/subjects/[subjectId]` | SubjectView  | Concepts in a subject                  |
+| `/app/concepts/[conceptId]` | ConceptView  | Full concept detail                    |
+| `/app/library`              | ListMode     | All concepts, searchable               |
+| `/app/focus`                | FocusMode    | Flipcard carousel                      |
+| `/app/index`                | IndexMode    | Alphabetical pill grid                 |
+| `/app/overview`             | OverviewView | Stats dashboard (Server Component)     |
+| `/app/sessions`             | SessionsPage | Study session history with edit/delete |
 
 ### App Shell Layout (`(app)/layout.tsx`)
 
@@ -158,6 +212,7 @@ Renders: `Sidebar` (fixed left, collapsible) + `StudySessionBar` (fixed top) + `
 ## View Behaviors & Keyboard Shortcuts
 
 ### SubjectView (`/app/subjects/[subjectId]`)
+
 - Sort modes: `alpha`, `alpha_desc`, `date_new`, `date_old`, `reviews_high`, `reviews_low`, `custom`
 - Filters: topic, tag, state, priority, pinned
 - Keyboard (outside inputs): `↑↓` navigate rows, `Enter` open, `Space` toggle MVK drawer, `+/=` increment review, `-` decrement review, `Backspace` back
@@ -165,11 +220,13 @@ Renders: `Sidebar` (fixed left, collapsible) + `StudySessionBar` (fixed top) + `
 - Back navigation restores scroll, focused row, and filter state from `sessionStorage`
 
 ### ConceptView (`/app/concepts/[conceptId]`)
+
 - Three sections: MVK (blue tint), Notes, References — each with MarkdownEditor (Code/Preview toggle)
 - Keyboard: `Backspace` back, `+/=` increment review, `-` decrement review
 - Navigating away while any editor is dirty triggers `UnsavedChangesDialog`
 
 ### ListMode / Library (`/app/library`)
+
 - Client-side name search (no DB call on each keystroke)
 - Sort: same 7-mode set as SubjectView
 - Filters: subject, topic, tag, state, priority, pinned
@@ -177,32 +234,38 @@ Renders: `Sidebar` (fixed left, collapsible) + `StudySessionBar` (fixed top) + `
 - Back navigation preserves state
 
 ### FocusMode (`/app/focus`)
+
 - One concept at a time; Reveal buttons for MVK / Notes / References
 - Keyboard: `←` prev, `→` next, `+/-` review
 - URL state (`?id=`) preserves position across back-navigation
 
 ### IndexMode (`/app/index`)
+
 - 5-column desktop grid, grouped alphabetically; `#` group for non-alphabetic (numeric sort within group)
 - Two-click: first click focuses pill, second click opens ConceptView
 - Keyboard: `←→↑↓` visual grid navigation (finds nearest pill on adjacent row by horizontal overlap), `Space` MVK, `+/-` review, `Enter` open
 - Back navigation preserves state
 
 ### OverviewView (`/app/overview`)
+
 - Three sections: Study (total time, sessions, reviews), Inventory (state distribution, recent), Catalog (subjects/topics/tags with counts)
 - Server Component; no keyboard shortcuts
 
 ### SessionsPage (`/app/sessions`)
+
 - Lists all study sessions (newest first)
 - Edit button opens `EditSessionModal` (change minutes + subject)
 - Delete button opens `DeleteSessionDialog` (confirmation)
 - Uses `useStudySessions`, `useUpdateStudySession`, `useDeleteStudySession`
 
 ### MvkDrawer
+
 - Floating panel triggered by `Space` in SubjectView and ListMode
 - Resizable; height persisted in `localStorage`
 - Uses `InlineEditor` for inline editing without entering ConceptView
 
 ### Unsaved Changes Guard
+
 - `DirtyStateProvider` tracks whether any `MarkdownEditor` has unsaved content
 - Navigating away while dirty shows `UnsavedChangesDialog` (Stay / Leave)
 - Browser `beforeunload` event is also guarded
@@ -210,6 +273,7 @@ Renders: `Sidebar` (fixed left, collapsible) + `StudySessionBar` (fixed top) + `
 ### Back Navigation State (sessionStorage pattern)
 
 SubjectView, ListMode, and IndexMode save state before navigating to ConceptView:
+
 - `cv-back` — key presence signals returning from ConceptView
 - `scroll-{view}` — scrollTop of `#main-content`
 - `{view}-last-id` — focused concept ID
@@ -245,9 +309,9 @@ All data mutations and queries are Server Actions. No custom API routes for doma
 ### Security contract (mandatory in every action)
 
 ```typescript
-const session = await auth()
-if (!session?.user?.id) throw new Error('Unauthorized')
-const userId = session.user.id
+const session = await auth();
+if (!session?.user?.id) throw new Error("Unauthorized");
+const userId = session.user.id;
 // Every DB query: ...where(eq(table.userId, userId))
 ```
 
@@ -255,49 +319,49 @@ Never accept `userId` from the client. Never skip the ownership check.
 
 ### `concepts.ts`
 
-| Action | Description |
-|--------|-------------|
-| `getConcepts()` | All user concepts with joined subject/topic/tag IDs |
-| `getConcept(id)` | Single concept + joined IDs and names |
-| `createConcept(input)` | Resolve-or-create subjects/topics/tags; insert concept + junctions; init sort order |
-| `updateConcept(id, input)` | Diff old vs new junctions; prune orphans |
-| `deleteConcept(id)` | Delete concept (FK cascade handles junctions); prune orphaned subjects/topics/tags |
-| `updateConceptField(id, field, value)` | Patch `state`, `priority`, or `pinned` |
-| `updateConceptContent(id, field, value)` | Patch `mvkNotes`, `markdownNotes`, or `referencesMarkdown` |
-| `incrementReview(id)` | `review_count + 1` |
-| `decrementReview(id)` | `GREATEST(0, review_count - 1)` |
+| Action                                   | Description                                                                         |
+| ---------------------------------------- | ----------------------------------------------------------------------------------- |
+| `getConcepts()`                          | All user concepts with joined subject/topic/tag IDs                                 |
+| `getConcept(id)`                         | Single concept + joined IDs and names                                               |
+| `createConcept(input)`                   | Resolve-or-create subjects/topics/tags; insert concept + junctions; init sort order |
+| `updateConcept(id, input)`               | Diff old vs new junctions; prune orphans                                            |
+| `deleteConcept(id)`                      | Delete concept (FK cascade handles junctions); prune orphaned subjects/topics/tags  |
+| `updateConceptField(id, field, value)`   | Patch `state`, `priority`, or `pinned`                                              |
+| `updateConceptContent(id, field, value)` | Patch `mvkNotes`, `markdownNotes`, or `referencesMarkdown`                          |
+| `incrementReview(id)`                    | `review_count + 1`                                                                  |
+| `decrementReview(id)`                    | `GREATEST(0, review_count - 1)`                                                     |
 
 ### `subjects.ts`
 
 This file owns subjects, topics, and tags — all three are fetched here.
 
-| Action | Description |
-|--------|-------------|
-| `getSubjects()` | All subjects for user with concept count (LEFT JOIN aggregation) |
-| `getTopics()` | All topics for user, ordered by name |
-| `getTags()` | All tags for user, ordered by name |
-| `getSubjectSortMode(subjectId)` | Returns `SubjectSortMode`; defaults to `'alpha'` if not set |
-| `setSubjectSortMode(subjectId, mode)` | Upsert; if switching to `'custom'`, initialize `subject_concept_orders` with current date order |
-| `getSubjectConceptOrder(subjectId)` | Concept IDs in position order |
-| `moveConceptInSubject(subjectId, conceptId, direction)` | Swap adjacent positions (`'up'` or `'down'`) |
+| Action                                                  | Description                                                                                     |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `getSubjects()`                                         | All subjects for user with concept count (LEFT JOIN aggregation)                                |
+| `getTopics()`                                           | All topics for user, ordered by name                                                            |
+| `getTags()`                                             | All tags for user, ordered by name                                                              |
+| `getSubjectSortMode(subjectId)`                         | Returns `SubjectSortMode`; defaults to `'alpha'` if not set                                     |
+| `setSubjectSortMode(subjectId, mode)`                   | Upsert; if switching to `'custom'`, initialize `subject_concept_orders` with current date order |
+| `getSubjectConceptOrder(subjectId)`                     | Concept IDs in position order                                                                   |
+| `moveConceptInSubject(subjectId, conceptId, direction)` | Swap adjacent positions (`'up'` or `'down'`)                                                    |
 
 ### `study-sessions.ts`
 
-| Action | Description |
-|--------|-------------|
-| `getStudySessions()` | All sessions for current user, newest first |
-| `addStudySession({ minutes, subjectId? })` | Insert session |
-| `updateStudySession(id, input)` | Patch `minutes` and/or `subjectId` (ownership checked) |
-| `deleteStudySession(id)` | Delete session (ownership checked) |
+| Action                                     | Description                                            |
+| ------------------------------------------ | ------------------------------------------------------ |
+| `getStudySessions()`                       | All sessions for current user, newest first            |
+| `addStudySession({ minutes, subjectId? })` | Insert session                                         |
+| `updateStudySession(id, input)`            | Patch `minutes` and/or `subjectId` (ownership checked) |
+| `deleteStudySession(id)`                   | Delete session (ownership checked)                     |
 
 ### `auth.ts`
 
-| Action | Description |
-|--------|-------------|
-| `signUpWithCredentials({ email, name, password })` | Validate → check duplicate → bcrypt hash → insert user → sign in |
-| `requestPasswordReset({ email })` | Generate token → insert `password_reset_tokens` → send Resend email (always returns success, no email enumeration) |
-| `resetPassword({ token, newPassword })` | Validate token (exists, unexpired, unused) → bcrypt hash → update user → mark token used |
-| `createGuestUser()` | Generate UUID-based credentials → insert user with `isGuest: true` → return `{ email, password }` |
+| Action                                             | Description                                                                                                        |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `signUpWithCredentials({ email, name, password })` | Validate → check duplicate → bcrypt hash → insert user → sign in                                                   |
+| `requestPasswordReset({ email })`                  | Generate token → insert `password_reset_tokens` → send Resend email (always returns success, no email enumeration) |
+| `resetPassword({ token, newPassword })`            | Validate token (exists, unexpired, unused) → bcrypt hash → update user → mark token used                           |
+| `createGuestUser()`                                | Generate UUID-based credentials → insert user with `isGuest: true` → return `{ email, password }`                  |
 
 ---
 
@@ -307,26 +371,26 @@ Server Components call Server Actions directly for initial render. Client Compon
 
 ### Hook Inventory
 
-| Hook | Description |
-|------|-------------|
-| `useConcepts()` | All user concepts from TQ cache |
-| `useConcept(id)` | Single concept; seeded from list cache to avoid waterfall |
-| `useCreateConcept()` | Creates concept; uses `refetchType: 'none'` on success to avoid race with `router.push` |
-| `useUpdateConcept()` | Updates concept metadata |
-| `useUpdateConceptField()` | Patches `state`/`priority`/`pinned` with optimistic update |
-| `useUpdateConceptContent()` | Patches `mvkNotes`/`markdownNotes`/`referencesMarkdown` |
-| `useIncrementReview()` | +1 `reviewCount`, optimistic |
-| `useDecrementReview()` | -1 `reviewCount` (floor 0), optimistic |
-| `useDeleteConcept()` | Deletes concept |
-| `useSubjects()` | Subjects with concept counts |
-| `useSubjectSortMode(id)` | Sort mode for a subject |
-| `useSetSubjectSortMode(id)` | Set sort mode; invalidates order queries on change |
-| `useSubjectConceptOrder(id)` | Custom concept order for a subject |
-| `useMoveConceptInSubject(id)` | Swap adjacent concept positions |
-| `useStudySessions()` | All study sessions |
-| `useAddStudySession()` | Add session; invalidates sessions list |
-| `useUpdateStudySession()` | Edit session with optimistic update |
-| `useDeleteStudySession()` | Delete session with optimistic update |
+| Hook                               | Description                                                                                                                |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `useConcepts()`                    | All user concepts from TQ cache                                                                                            |
+| `useConcept(id)`                   | Single concept; seeded from list cache to avoid waterfall                                                                  |
+| `useCreateConcept()`               | Creates concept; uses `refetchType: 'none'` on success to avoid race with `router.push`                                    |
+| `useUpdateConcept()`               | Updates concept metadata                                                                                                   |
+| `useUpdateConceptField()`          | Patches `state`/`priority`/`pinned` with optimistic update                                                                 |
+| `useUpdateConceptContent()`        | Patches `mvkNotes`/`markdownNotes`/`referencesMarkdown`                                                                    |
+| `useIncrementReview()`             | +1 `reviewCount`, optimistic                                                                                               |
+| `useDecrementReview()`             | -1 `reviewCount` (floor 0), optimistic                                                                                     |
+| `useDeleteConcept()`               | Deletes concept                                                                                                            |
+| `useSubjects()`                    | Subjects with concept counts                                                                                               |
+| `useSubjectSortMode(id)`           | Sort mode for a subject                                                                                                    |
+| `useSetSubjectSortMode(id)`        | Set sort mode; invalidates order queries on change                                                                         |
+| `useSubjectConceptOrder(id)`       | Custom concept order for a subject                                                                                         |
+| `useMoveConceptInSubject(id)`      | Swap adjacent concept positions                                                                                            |
+| `useStudySessions()`               | All study sessions                                                                                                         |
+| `useAddStudySession()`             | Add session; invalidates sessions list                                                                                     |
+| `useUpdateStudySession()`          | Edit session with optimistic update                                                                                        |
+| `useDeleteStudySession()`          | Delete session with optimistic update                                                                                      |
 | `useFilterSort(concepts, options)` | Local filter+sort state machine; returns `{ filtered, filters, sort, setFilter, setSort, clearFilters, hasActiveFilters }` |
 
 ### Optimistic update pattern
@@ -384,56 +448,56 @@ All UI components are Client Components (`'use client'`) unless noted. They rece
 
 ### UI Components (`src/components/ui/`)
 
-| Component | Notes |
-|-----------|-------|
-| `Sidebar.tsx` | Fixed left nav; collapsible; subject links; sign-out |
-| `StudySessionBar.tsx` | Fixed top bar; time presets (+15m, +30m, +1h, +2h); subject selector; wired to `addStudySession` |
-| `ConceptForm.tsx` | Create/edit concept modal; `createConcept`/`updateConcept`; uses `CreatableMultiSelect` |
-| `MarkdownEditor.tsx` | Code/Preview toggle; integrates with `DirtyStateProvider`; no image support |
-| `InlineEditor.tsx` | Compact inline editor used inside `MvkDrawer`; resize affordance |
-| `MvkDrawer.tsx` | Floating MVK panel; resizable (height in `localStorage`); uses `InlineEditor` |
-| `FilterSortBar.tsx` | Filter/sort dropdowns for SubjectView and ListMode |
-| `ShortcutsHintBar.tsx` | Keyboard shortcut hints bar; hidden on mobile |
-| `StatusBadge.tsx` | Exports `StateSelector`, `PriorityBadge`, `ReviewCounter`, `PinButton` |
-| `CreatableMultiSelect.tsx` | Multi-select with "create new" option; portal dropdown; keyboard navigation |
-| `Logo.tsx` | Multi-variant logo (`nav`, `sidebar`, `auth`, `footer`, `decorative`, `error`) |
-| `MarkdownHelpPanel.tsx` | Syntax reference panel (Basics, Code, Math, Diagrams sections) |
-| `MermaidDiagram.tsx` | Client-only Mermaid renderer; lazy-loads the mermaid library; error/loading states |
-| `UnsavedChangesDialog.tsx` | Blocks navigation when a MarkdownEditor has unsaved content |
-| `DeleteConceptDialog.tsx` | Confirm-before-delete modal for concepts |
-| `DeleteSessionDialog.tsx` | Confirm-before-delete modal for study sessions |
-| `EditSessionModal.tsx` | Edit study session (minutes + subject) |
+| Component                  | Notes                                                                                            |
+| -------------------------- | ------------------------------------------------------------------------------------------------ |
+| `Sidebar.tsx`              | Fixed left nav; collapsible; subject links; sign-out                                             |
+| `StudySessionBar.tsx`      | Fixed top bar; time presets (+15m, +30m, +1h, +2h); subject selector; wired to `addStudySession` |
+| `ConceptForm.tsx`          | Create/edit concept modal; `createConcept`/`updateConcept`; uses `CreatableMultiSelect`          |
+| `MarkdownEditor.tsx`       | Code/Preview toggle; integrates with `DirtyStateProvider`; no image support                      |
+| `InlineEditor.tsx`         | Compact inline editor used inside `MvkDrawer`; resize affordance                                 |
+| `MvkDrawer.tsx`            | Floating MVK panel; resizable (height in `localStorage`); uses `InlineEditor`                    |
+| `FilterSortBar.tsx`        | Filter/sort dropdowns for SubjectView and ListMode                                               |
+| `ShortcutsHintBar.tsx`     | Keyboard shortcut hints bar; hidden on mobile                                                    |
+| `StatusBadge.tsx`          | Exports `StateSelector`, `PriorityBadge`, `ReviewCounter`, `PinButton`                           |
+| `CreatableMultiSelect.tsx` | Multi-select with "create new" option; portal dropdown; keyboard navigation                      |
+| `Logo.tsx`                 | Multi-variant logo (`nav`, `sidebar`, `auth`, `footer`, `decorative`, `error`)                   |
+| `MarkdownHelpPanel.tsx`    | Syntax reference panel (Basics, Code, Math, Diagrams sections)                                   |
+| `MermaidDiagram.tsx`       | Client-only Mermaid renderer; lazy-loads the mermaid library; error/loading states               |
+| `UnsavedChangesDialog.tsx` | Blocks navigation when a MarkdownEditor has unsaved content                                      |
+| `DeleteConceptDialog.tsx`  | Confirm-before-delete modal for concepts                                                         |
+| `DeleteSessionDialog.tsx`  | Confirm-before-delete modal for study sessions                                                   |
+| `EditSessionModal.tsx`     | Edit study session (minutes + subject)                                                           |
 
 ### Providers (`src/components/providers/`)
 
-| Provider | Notes |
-|----------|-------|
-| `QueryProvider.tsx` | TanStack Query setup; `staleTime: 30s`, `refetchOnWindowFocus: false` |
-| `SessionProvider.tsx` | NextAuth `SessionProvider` wrapper |
-| `DirtyStateProvider.tsx` | Tracks unsaved editor content; provides `isDirty`, `setDirty`, `requestNavigation`; renders `UnsavedChangesDialog`; guards `beforeunload` |
-| `ConceptFormProvider.tsx` | Global concept form modal state; cancels in-flight TQ queries before `router.push` to prevent race conditions (see `docs/bugs/redirect-new-concept-navigation.md`) |
-| `SidebarStateProvider.tsx` | Sidebar collapse boolean |
-| `ViewStateRegistryProvider.tsx` | Registers view state savers; allows views to persist scroll/focus before navigating |
+| Provider                        | Notes                                                                                                                                                              |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `QueryProvider.tsx`             | TanStack Query setup; `staleTime: 30s`, `refetchOnWindowFocus: false`                                                                                              |
+| `SessionProvider.tsx`           | NextAuth `SessionProvider` wrapper                                                                                                                                 |
+| `DirtyStateProvider.tsx`        | Tracks unsaved editor content; provides `isDirty`, `setDirty`, `requestNavigation`; renders `UnsavedChangesDialog`; guards `beforeunload`                          |
+| `ConceptFormProvider.tsx`       | Global concept form modal state; cancels in-flight TQ queries before `router.push` to prevent race conditions (see `docs/bugs/redirect-new-concept-navigation.md`) |
+| `SidebarStateProvider.tsx`      | Sidebar collapse boolean                                                                                                                                           |
+| `ViewStateRegistryProvider.tsx` | Registers view state savers; allows views to persist scroll/focus before navigating                                                                                |
 
 ### Landing Components (`src/components/landing/`)
 
-| Component | Notes |
-|-----------|-------|
-| `FeaturesSection.tsx` | Feature showcase with screenshots from `public/landing-features/` |
-| `IdeaSection.tsx` | Marketing section explaining the MVK concept |
-| `GuestLink.tsx` | "Try as guest" CTA; calls `createGuestUser()`; stores credentials in `localStorage`; handles 30-day TTL |
+| Component             | Notes                                                                                                   |
+| --------------------- | ------------------------------------------------------------------------------------------------------- |
+| `FeaturesSection.tsx` | Feature showcase with screenshots from `public/landing-features/`                                       |
+| `IdeaSection.tsx`     | Marketing section explaining the MVK concept                                                            |
+| `GuestLink.tsx`       | "Try as guest" CTA; calls `createGuestUser()`; stores credentials in `localStorage`; handles 30-day TTL |
 
 ---
 
 ## Utility Libraries (`src/lib/`)
 
-| File | Purpose |
-|------|---------|
-| `types.ts` | TypeScript interfaces and type aliases |
-| `validations.ts` | Zod schemas for all server action inputs |
-| `posts.ts` | Blog post parsing (`getAllPosts`, `getPost`, `formatPostDate`) using Node `fs` |
-| `subject-colors.ts` | `SUBJECT_COLORS` array + `getSubjectColor(id)` for consistent badge colors |
-| `md-config.tsx` | Centralized markdown config: custom `remarkMark` plugin (`==text==` highlight), `MD_PLUGINS` array, `mdComponents` map (Mermaid block support) |
+| File                | Purpose                                                                                                                                        |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `types.ts`          | TypeScript interfaces and type aliases                                                                                                         |
+| `validations.ts`    | Zod schemas for all server action inputs                                                                                                       |
+| `posts.ts`          | Blog post parsing (`getAllPosts`, `getPost`, `formatPostDate`) using Node `fs`                                                                 |
+| `subject-colors.ts` | `SUBJECT_COLORS` array + `getSubjectColor(id)` for consistent badge colors                                                                     |
+| `md-config.tsx`     | Centralized markdown config: custom `remarkMark` plugin (`==text==` highlight), `MD_PLUGINS` array, `mdComponents` map (Mermaid block support) |
 
 ---
 
@@ -462,7 +526,7 @@ Posts in `src/posts/*.md` with YAML frontmatter (`title`, `date`). `src/lib/post
 1. Create Vercel project; set root directory to repo root (leave empty)
 2. Link Neon database via Vercel integration (auto-sets `DATABASE_URL`)
 3. Set remaining env vars in Vercel project settings (including `CRON_SECRET`)
-4. Configure OAuth callback URL: `https://<domain>/api/auth/callback/google`
+4. Configure OAuth callback URLs: `https://<domain>/api/auth/callback/google`, `.../facebook`
 5. Run `npx drizzle-kit migrate` against production Neon branch before first deploy
 6. Deploy via `git push` (Vercel auto-deploys from main branch)
 
@@ -502,12 +566,12 @@ Applied to all routes via `next.config.ts` `headers()`: `X-Content-Type-Options`
 
 ### Known deferred gaps (do not re-implement or re-flag)
 
-| Gap | Status |
-|-----|--------|
-| Rate limiting on auth endpoints | Planned: `@upstash/ratelimit` + Upstash Redis before high-traffic launch |
-| Email verification for new accounts | Deferred to post-MVP |
-| JWT session invalidation after password reset | Requires denylist — deferred |
-| Content Security Policy (CSP) | Requires tuning for KaTeX/Mermaid/Next.js nonces — deferred |
+| Gap                                           | Status                                                                   |
+| --------------------------------------------- | ------------------------------------------------------------------------ |
+| Rate limiting on auth endpoints               | Planned: `@upstash/ratelimit` + Upstash Redis before high-traffic launch |
+| Email verification for new accounts           | Deferred to post-MVP                                                     |
+| JWT session invalidation after password reset | Requires denylist — deferred                                             |
+| Content Security Policy (CSP)                 | Requires tuning for KaTeX/Mermaid/Next.js nonces — deferred              |
 
 ### Security review
 
