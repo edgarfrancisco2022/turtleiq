@@ -16,6 +16,8 @@ interface Props {
   placeholder?: string
   onTabNext?: () => void
   single?: boolean
+  disabled?: boolean
+  disabledMessage?: string
 }
 
 const CreatableMultiSelect = forwardRef<CreatableMultiSelectHandle, Props>(function CreatableMultiSelect({
@@ -27,6 +29,8 @@ const CreatableMultiSelect = forwardRef<CreatableMultiSelectHandle, Props>(funct
   placeholder = 'Select or type to create...',
   onTabNext,
   single = false,
+  disabled = false,
+  disabledMessage,
 }: Props, ref) {
   const isFull = single && selected.length >= 1
   const [input, setInput] = useState('')
@@ -81,7 +85,7 @@ const CreatableMultiSelect = forwardRef<CreatableMultiSelectHandle, Props>(funct
   }, [])
 
   function open() {
-    if (isFull) return
+    if (isFull || disabled) return
     updatePos()
     setIsOpen(true)
     requestAnimationFrame(() => searchInputRef.current?.focus())
@@ -213,16 +217,18 @@ const CreatableMultiSelect = forwardRef<CreatableMultiSelectHandle, Props>(funct
 
       <div
         ref={triggerRef}
-        tabIndex={0}
-        className={`min-h-[34px] border rounded-md px-2 py-1 flex flex-wrap gap-1 items-center transition-colors bg-white select-none focus:outline-none ${
-          isFull
-            ? 'border-gray-200 bg-gray-50 cursor-default'
-            : isOpen
-              ? 'border-blue-500 cursor-pointer'
-              : 'border-gray-300 hover:border-gray-400 focus:border-blue-500 cursor-pointer'
+        tabIndex={disabled ? -1 : 0}
+        className={`min-h-[34px] border rounded-md px-2 py-1 flex flex-wrap gap-1 items-center transition-colors select-none focus:outline-none ${
+          disabled
+            ? 'border-gray-200 bg-gray-50 cursor-not-allowed'
+            : isFull
+              ? 'border-gray-200 bg-gray-50 cursor-default bg-white'
+              : isOpen
+                ? 'border-blue-500 cursor-pointer bg-white'
+                : 'border-gray-300 hover:border-gray-400 focus:border-blue-500 cursor-pointer bg-white'
         }`}
-        onClick={open}
-        onKeyDown={(e) => {
+        onClick={disabled ? undefined : open}
+        onKeyDown={disabled ? undefined : (e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault()
             open()
@@ -235,32 +241,36 @@ const CreatableMultiSelect = forwardRef<CreatableMultiSelectHandle, Props>(funct
             className="flex items-center gap-1 bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full"
           >
             {s}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                remove(s)
-              }}
-              className="text-blue-400 hover:text-blue-700 leading-none transition-colors"
-              aria-label={`Remove ${s}`}
-            >
-              <svg
-                viewBox="0 0 10 10"
-                fill="none"
-                className="w-2 h-2"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
+            {!disabled && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  remove(s)
+                }}
+                className="text-blue-400 hover:text-blue-700 leading-none transition-colors"
+                aria-label={`Remove ${s}`}
               >
-                <path d="M2 2l6 6M8 2L2 8" />
-              </svg>
-            </button>
+                <svg
+                  viewBox="0 0 10 10"
+                  fill="none"
+                  className="w-2 h-2"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                >
+                  <path d="M2 2l6 6M8 2L2 8" />
+                </svg>
+              </button>
+            )}
           </span>
         ))}
         {selected.length === 0 && (
-          <span className="flex-1 text-sm text-gray-400 py-0.5">{placeholder}</span>
+          <span className="flex-1 text-sm text-gray-400 py-0.5">
+            {disabled && disabledMessage ? disabledMessage : placeholder}
+          </span>
         )}
-        {isFull ? (
+        {!disabled && (isFull ? (
           <span className="text-xs text-gray-400 ml-auto italic">remove to change</span>
         ) : (
           <svg
@@ -274,7 +284,7 @@ const CreatableMultiSelect = forwardRef<CreatableMultiSelectHandle, Props>(funct
           >
             <path d="M1 1l4 4 4-4" />
           </svg>
-        )}
+        ))}
       </div>
 
       {dropdown}

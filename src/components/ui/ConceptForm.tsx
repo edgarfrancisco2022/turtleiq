@@ -177,7 +177,11 @@ export default function ConceptForm({ concept = null, onClose, onDone }: Props) 
               single
               options={allTopics.map((t) => t.name)}
               selected={selTopic ? [selTopic] : []}
-              onChange={(arr) => setSelTopic(arr[arr.length - 1] ?? null)}
+              onChange={(arr) => {
+                const newTopic = arr[arr.length - 1] ?? null
+                setSelTopic(newTopic)
+                if (!newTopic) setSelSubtopic(null)
+              }}
               placeholder="Select or create topic..."
               onTabNext={() => subtopicRef.current?.focus()}
             />
@@ -191,6 +195,8 @@ export default function ConceptForm({ concept = null, onClose, onDone }: Props) 
               onChange={(arr) => setSelSubtopic(arr[arr.length - 1] ?? null)}
               placeholder="Select or create subtopic..."
               onTabNext={() => tagsRef.current?.focus()}
+              disabled={!selTopic}
+              disabledMessage="Select a topic first to add a subtopic"
             />
 
             <CreatableMultiSelect

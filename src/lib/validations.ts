@@ -55,7 +55,10 @@ export const conceptInputSchema = z.object({
     .default('NEW'),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).default('MEDIUM'),
   pinned: z.boolean().default(false),
-})
+}).refine(
+  (data) => data.subtopicName === null || data.topicName !== null,
+  { message: 'A topic is required when a subtopic is selected', path: ['subtopicName'] }
+)
 
 export type ConceptInputValidated = z.infer<typeof conceptInputSchema>
 

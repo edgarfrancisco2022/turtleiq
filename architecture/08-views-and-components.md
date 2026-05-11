@@ -234,13 +234,19 @@ Modal for creating and editing concepts.
 
 **Fields:**
 - Name (text input, required)
-- Subjects (CreatableMultiSelect — can create new subjects inline)
-- Topics (CreatableMultiSelect)
-- Tags (CreatableMultiSelect)
+- Subjects (CreatableMultiSelect — can create new subjects inline, multi-select)
+- Topic (CreatableMultiSelect, single-select)
+- Subtopic (CreatableMultiSelect, single-select — **disabled unless a Topic is selected**)
+- Tags (CreatableMultiSelect, multi-select)
+
+**Topic/Subtopic dependency rule:**
+- The Subtopic field is disabled when no Topic is selected; it shows "Select a topic first to add a subtopic" as placeholder text
+- When the user clears the Topic, the Subtopic is automatically cleared too
+- This enforces the hierarchy needed by the Outline feature: Subject → Topic → Subtopic → Concept
 
 **Modes:**
 - Create (`concept === null`): empty fields
-- Edit (`concept !== null`): pre-filled with existing values
+- Edit (`concept !== null`): pre-filled; IDs are resolved to names via the subject/topic/subtopic/tag query caches
 
 **Behaviors:**
 - Mobile keyboard awareness: tracks `visualViewport` resize events to adjust modal height when the on-screen keyboard appears
@@ -352,13 +358,15 @@ This ensures only one dropdown is open at a time without a global state manager.
 
 ### `CreatableMultiSelect` (`src/components/ui/CreatableMultiSelect.tsx`)
 
-Multi-select with "create new" inline option. Used in ConceptForm for Subjects, Topics, Tags.
+Multi-select with "create new" inline option. Used in ConceptForm for Subjects, Topic, Subtopic, and Tags.
 
 **Features:**
 - Renders selected items as dismissible chips
 - Dropdown shows matching options + "Create 'X'" option when typed value doesn't match
 - Dropdown renders in a **portal** (`document.body`) to avoid z-index clipping inside the modal
 - Full keyboard navigation: Tab through chips, Delete to remove, Arrow keys in dropdown, Enter to select
+- `single` prop: limits selection to one item; shows "remove to change" hint instead of the chevron
+- `disabled` + `disabledMessage` props: renders the field non-interactive with a custom placeholder explaining why (used by the Subtopic field when no Topic is selected)
 
 ### `ShortcutsHintBar` (`src/components/ui/ShortcutsHintBar.tsx`)
 
