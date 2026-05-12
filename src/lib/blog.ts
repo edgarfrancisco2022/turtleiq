@@ -38,10 +38,7 @@ function fileToSlug(filename: string): string {
 
 const postsDir = path.join(process.cwd(), 'src', 'posts')
 
-/**
- * All posts sorted newest first.
- * Each post: { slug, title, date, content }
- */
+/** All blog posts sorted newest first. */
 export function getAllPosts(): Post[] {
   const files = fs.readdirSync(postsDir).filter((f) => f.endsWith('.md'))
 

@@ -15,7 +15,7 @@ export default function LandingPage() {
             <Logo />
           </Link>
           <div className="flex items-center gap-5">
-            <Link href="/notes" className="text-sm text-gray-500 hover:text-gray-800 transition-colors">Notes</Link>
+            <Link href="/blog" className="text-sm text-gray-500 hover:text-gray-800 transition-colors">Blog</Link>
             <Link href="/sign-in" className="text-sm text-gray-500 hover:text-gray-800 transition-colors">Sign in</Link>
             <Link
               href="/sign-up"
@@ -96,7 +96,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-6 flex items-center justify-between text-xs text-gray-400">
           <Logo variant="footer" />
           <div className="flex items-center gap-4">
-            <Link href="/notes" className="hover:text-gray-600 transition-colors">Notes</Link>
+            <Link href="/blog" className="hover:text-gray-600 transition-colors">Blog</Link>
             <Link href="/privacy" className="hover:text-gray-600 transition-colors">Privacy</Link>
             <Link href="/sign-in" className="hover:text-gray-600 transition-colors">Sign in</Link>
             <Link href="/sign-up" className="hover:text-gray-600 transition-colors">Sign up</Link>

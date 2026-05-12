@@ -5,7 +5,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
-import { getPost, getAllPosts, formatPostDate } from '@/lib/posts'
+import { getPost, getAllPosts, formatPostDate } from '@/lib/blog'
 import 'katex/dist/katex.min.css'
 
 export async function generateStaticParams() {
@@ -53,11 +53,11 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
       {/* Post content */}
       <main className="max-w-3xl mx-auto px-6 py-16 flex-1 w-full">
         <Link
-          href="/notes"
+          href="/blog"
           className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 transition-colors mb-12"
-          aria-label="Back to all notes"
+          aria-label="Back to all blog posts"
         >
-          ← Notes
+          ← Blog
         </Link>
 
         <article>
@@ -84,7 +84,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
         <div className="max-w-6xl mx-auto px-6 flex items-center justify-between text-xs text-gray-400">
           <Logo variant="footer" />
           <div className="flex items-center gap-4">
-            <Link href="/notes" className="hover:text-gray-600 transition-colors">Notes</Link>
+            <Link href="/blog" className="hover:text-gray-600 transition-colors">Blog</Link>
             <Link href="/privacy" className="hover:text-gray-600 transition-colors">Privacy</Link>
             <Link href="/sign-in" className="hover:text-gray-600 transition-colors">Sign in</Link>
             <Link href="/sign-up" className="hover:text-gray-600 transition-colors">Sign up</Link>

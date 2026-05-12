@@ -1,10 +1,10 @@
 import Link from 'next/link'
-import { getAllPosts, formatPostDate } from '@/lib/posts'
+import { getAllPosts, formatPostDate } from '@/lib/blog'
 import Logo from '@/components/ui/Logo'
 
-export const metadata = { title: 'Notes — TortugaIQ' }
+export const metadata = { title: 'Blog — TortugaIQ' }
 
-export default function NotesPage() {
+export default function BlogPage() {
   const posts = getAllPosts()
 
   return (
@@ -34,7 +34,7 @@ export default function NotesPage() {
 
       {/* Post list */}
       <main className="max-w-3xl mx-auto px-6 py-16 flex-1 w-full">
-        <h1 className="text-3xl font-bold text-gray-900 mb-10">Notes</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-10">Blog</h1>
 
         {posts.length === 0 ? (
           <p className="text-gray-400 text-sm">No posts yet.</p>
@@ -42,7 +42,7 @@ export default function NotesPage() {
           <ol className="space-y-10" aria-label="Blog posts">
             {posts.map((post) => (
               <li key={post.slug}>
-                <Link href={`/notes/${post.slug}`} className="group block">
+                <Link href={`/blog/${post.slug}`} className="group block">
                   <time dateTime={post.date} className="text-sm text-gray-400 block mb-2">
                     {formatPostDate(post.date)}
                   </time>
@@ -61,7 +61,7 @@ export default function NotesPage() {
         <div className="max-w-6xl mx-auto px-6 flex items-center justify-between text-xs text-gray-400">
           <Logo variant="footer" />
           <div className="flex items-center gap-4">
-            <Link href="/notes" className="hover:text-gray-600 transition-colors">Notes</Link>
+            <Link href="/blog" className="hover:text-gray-600 transition-colors">Blog</Link>
             <Link href="/privacy" className="hover:text-gray-600 transition-colors">Privacy</Link>
             <Link href="/sign-in" className="hover:text-gray-600 transition-colors">Sign in</Link>
             <Link href="/sign-up" className="hover:text-gray-600 transition-colors">Sign up</Link>
